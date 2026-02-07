@@ -1,0 +1,139 @@
+/* AdminDashboard.css */
+
+.admin-header h1 {
+  margin-bottom: 0.5rem;
+}
+
+.add-module-btn {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  padding: 0;
+}
+
+.top-bar-filters {
+  padding: 1rem 1.5rem;
+}
+
+.search-input-wrapper {
+  background: transparent !important;
+  border: none;
+  box-shadow: none;
+  margin: 0;
+}
+
+.course-filter-select {
+  margin: 0;
+  width: 180px;
+}
+
+.module-card-content {
+  flex: 1;
+}
+
+.module-title {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.batch-badge {
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+}
+
+.batch-selector-wrapper {
+  width: 180px;
+}
+
+.timer-input {
+  width: 60px;
+  margin: 0;
+  padding: 4px 8px;
+  text-align: center;
+}
+
+.status-toggle-wrapper {
+  min-width: 120px;
+  justify-content: flex-end;
+}
+
+.status-btn {
+  padding: 0.3rem 0.5rem;
+  width: 100px;
+}
+
+.alert-circle-icon {
+  display: block;
+  margin: 0 auto 1rem;
+}
+
+.analytics-header-title {
+  margin: 0;
+}
+
+.refresh-data-btn {
+  padding: 0.5rem 1rem;
+}
+
+.score-analytics-wrapper {
+  font-size: 0.8rem;
+}
+
+.score-divider {
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+
+.modal-header {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.modal-header h2 {
+  margin: 0;
+}
+
+.close-modal-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.modal-form-body {
+  padding: 1.5rem;
+}
+
+.flex-1 {
+  flex: 1;
+}
+
+.file-upload-container {
+  margin-top: 1rem;
+}
+
+.file-upload-input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  margin: 0;
+}
+
+.file-upload-icon {
+  display: block;
+  margin: 0 auto 0.5rem;
+}
+
+/* MultiSelect overrides */
+.multi-select-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2000;
+}
+
+.multi-select-divider {
+  height: 1px;
+  background: var(--border-color);
+  margin: 4px 0;
+}
