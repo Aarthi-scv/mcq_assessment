@@ -13,8 +13,7 @@ app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Database Connection
-const MONGO_URI = 'mongodb+srv://aarthi7813_db_user:aBzs6dwZYrbW1W5y@onedrop.01vzwgx.mongodb.net/?appName=onedrop';
-
+const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://aarthi7813_db_user:Aarthieg_13@cluster1.4j0xn4b.mongodb.net/assessment?retryWrites=true&w=majority&appName=Cluster1"
 mongoose.connect(MONGO_URI)
   .then(() => console.log('MongoDB Connected'))
   .catch(err => console.error('MongoDB Connection Error:', err));

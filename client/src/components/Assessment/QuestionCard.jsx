@@ -2,6 +2,8 @@ import React from "react";
 import { RotateCcw, Bookmark, BookmarkCheck } from "lucide-react";
 import "./QuestionCard.css";
 
+const UPLOADS_URL = import.meta.env.VITE_UPLOADS_URL || "http://localhost:5000/uploads";
+
 const QuestionCard = ({
   question,
   index,
@@ -21,7 +23,7 @@ const QuestionCard = ({
         {question.questionImage && (
           <div className="question-image-container">
             <img
-              src={`http://localhost:5000/uploads/${question.questionImage}`}
+              src={`${UPLOADS_URL}/${question.questionImage}`}
               alt={`Question ${index + 1}`}
               className="question-image"
             />

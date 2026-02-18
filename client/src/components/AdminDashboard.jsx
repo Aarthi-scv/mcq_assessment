@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import "./AdminDashboard.css";
 
-const API_URL = "http://localhost:5000/api";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 const BATCH_OPTIONS = ["DV-B5", "DV-B6", "ES-B3", "VL-B1"];
 
 const MultiSelect = ({

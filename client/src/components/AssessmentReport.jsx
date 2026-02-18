@@ -12,7 +12,8 @@ import {
 import toast from "react-hot-toast";
 import "./AssessmentReport.css";
 
-const API_URL = "http://localhost:5000/api";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const UPLOADS_URL = import.meta.env.VITE_UPLOADS_URL || "http://localhost:5000/uploads";
 
 const AssessmentReport = () => {
   const navigate = useNavigate();
@@ -169,7 +170,7 @@ const AssessmentReport = () => {
                   }}
                 >
                   <img
-                    src={`http://localhost:5000/uploads/${item.questionImage}`}
+                    src={`${UPLOADS_URL}/${item.questionImage}`}
                     alt={`Question ${index + 1}`}
                     style={{
                       maxWidth: "100%",

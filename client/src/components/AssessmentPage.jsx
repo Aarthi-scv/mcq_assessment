@@ -10,7 +10,7 @@ import AssessmentHeader from "./Assessment/AssessmentHeader";
 import QuestionCard from "./Assessment/QuestionCard";
 import AssessmentSidebar from "./Assessment/AssessmentSidebar";
 
-const API_URL = "http://localhost:5000/api";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 const AssessmentPage = () => {
   const navigate = useNavigate();

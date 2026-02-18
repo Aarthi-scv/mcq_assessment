@@ -4,7 +4,7 @@ import axios from "axios";
 import toast from "react-hot-toast";
 import { User, Mail, ShieldCheck, Terminal } from "lucide-react";
 
-const API_URL = "http://localhost:5000/api";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 const Login = () => {
   const [formData, setFormData] = useState({
