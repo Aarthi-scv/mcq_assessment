@@ -8,12 +8,20 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const path = require('path');
 
-app.use(cors());
+// CORS configuration - restrict to your frontend domain in production
+const allowedOrigins = process.env.CLIENT_URL
+  ? process.env.CLIENT_URL.split(',')
+  : ['http://localhost:5173', 'http://localhost:3000'];
+
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true
+}));
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Database Connection
-const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://aarthi7813_db_user:Aarthieg_13@cluster1.4j0xn4b.mongodb.net/assessment?retryWrites=true&w=majority&appName=Cluster1"
+const MONGO_URI = process.env.MONGO_URI
 mongoose.connect(MONGO_URI)
   .then(() => console.log('MongoDB Connected'))
   .catch(err => console.error('MongoDB Connection Error:', err));
