@@ -23,7 +23,20 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // Database Connection
 const MONGO_URI = process.env.MONGO_URI
 mongoose.connect(MONGO_URI)
-  .then(() => console.log('MongoDB Connected'))
+  .then(async () => {
+    console.log('MongoDB Connected');
+    // Auto-seed admin if none exists
+    const bcrypt = require('bcryptjs');
+    const Admin = require('./models/Admin');
+    const adminCount = await Admin.countDocuments();
+    if (adminCount === 0) {
+      const username = process.env.ADMIN_USER || 'admin';
+      const password = process.env.ADMIN_PASS || 'admin123';
+      const hashed = await bcrypt.hash(password, 10);
+      await Admin.create({ username, password: hashed });
+      console.log(`Default admin created: ${username}`);
+    }
+  })
   .catch(err => console.error('MongoDB Connection Error:', err));
 
 app.use('/api', apiRoutes);
