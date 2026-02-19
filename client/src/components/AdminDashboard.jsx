@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import toast from "react-hot-toast";
 import {
@@ -17,11 +18,24 @@ import {
   X,
   CheckCircle2,
   AlertCircle,
+  Trash2,
+  Edit3,
+  Eye,
+  Save,
+  LogOut,
+  PlusCircle,
+  Minus,
 } from "lucide-react";
 import "./AdminDashboard.css";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 const BATCH_OPTIONS = ["DV-B5", "DV-B6", "ES-B3", "VL-B1"];
+
+// Helper to get admin auth header
+const getAdminHeaders = () => {
+  const token = localStorage.getItem("adminToken");
+  return { headers: { Authorization: `Bearer ${token}` } };
+};
 
 const MultiSelect = ({
   options,
@@ -126,6 +140,8 @@ const MultiSelect = ({
 };
 
 const AdminDashboard = () => {
+  const navigate = useNavigate();
+
   // State
   const [modules, setModules] = useState([]);
   const [submissions, setSubmissions] = useState([]);
@@ -134,22 +150,61 @@ const AdminDashboard = () => {
   const [filterCourse, setFilterCourse] = useState("All");
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Form State
+  // View/Edit Questions Modal State
+  const [viewModule, setViewModule] = useState(null);
+  const [editingQuestion, setEditingQuestion] = useState(null);
+  const [editForm, setEditForm] = useState({});
+
+  // Form State — NEW: individual question entry
   const [newModule, setNewModule] = useState({
     topicName: "",
     courseType: "ASIC-DV",
     difficultyLevel: "Medium",
     assignedBatch: [],
-    file: null,
   });
+  const [formQuestions, setFormQuestions] = useState([
+    { qn: "", optionA: "", optionB: "", optionC: "", optionD: "", correctAnswer: "A", explanation: "" }
+  ]);
+
+  // Auth check on mount
+  useEffect(() => {
+    const token = localStorage.getItem("adminToken");
+    if (!token) {
+      navigate("/control-center");
+      return;
+    }
+    // Verify token
+    axios.get(`${API_URL}/admin/verify`, getAdminHeaders())
+      .then(() => {
+        fetchModules();
+        fetchSubmissions();
+      })
+      .catch(() => {
+        localStorage.removeItem("adminToken");
+        localStorage.removeItem("adminUser");
+        toast.error("Session expired. Please login again.");
+        navigate("/control-center");
+      });
+  }, [navigate]);
+
+  const handleLogout = () => {
+    localStorage.removeItem("adminToken");
+    localStorage.removeItem("adminUser");
+    toast.success("Logged out successfully");
+    navigate("/control-center");
+  };
 
   // Fetch Modules & Submissions
   const fetchModules = async () => {
     try {
-      const res = await axios.get(`${API_URL}/modules`);
+      const res = await axios.get(`${API_URL}/modules`, getAdminHeaders());
       setModules(res.data);
       setLoading(false);
     } catch (err) {
+      if (err.response?.status === 401) {
+        navigate("/control-center");
+        return;
+      }
       toast.error("Failed to load modules");
       setLoading(false);
     }
@@ -157,36 +212,56 @@ const AdminDashboard = () => {
 
   const fetchSubmissions = async () => {
     try {
-      const res = await axios.get(`${API_URL}/submissions`);
+      const res = await axios.get(`${API_URL}/submissions`, getAdminHeaders());
       setSubmissions(res.data);
     } catch (err) {
       console.error("Failed to fetch submissions", err);
     }
   };
 
-  useEffect(() => {
-    fetchModules();
-    fetchSubmissions();
-  }, []);
+  // --- Question Form Handlers ---
+  const addQuestion = () => {
+    setFormQuestions([...formQuestions, {
+      qn: "", optionA: "", optionB: "", optionC: "", optionD: "", correctAnswer: "A", explanation: ""
+    }]);
+  };
 
-  // Create Module Handler
+  const removeQuestion = (index) => {
+    if (formQuestions.length <= 1) {
+      return toast.error("At least one question is required");
+    }
+    setFormQuestions(formQuestions.filter((_, i) => i !== index));
+  };
+
+  const updateQuestion = (index, field, value) => {
+    const updated = [...formQuestions];
+    updated[index][field] = value;
+    setFormQuestions(updated);
+  };
+
+  // Create Module Handler — NEW: JSON-based
   const handleCreate = async (e) => {
     e.preventDefault();
-    if (!newModule.file || !newModule.topicName) {
-      return toast.error("Please fill all required fields");
+    if (!newModule.topicName) {
+      return toast.error("Topic name is required");
     }
 
-    const formData = new FormData();
-    formData.append("topicName", newModule.topicName);
-    formData.append("courseType", newModule.courseType);
-    formData.append("difficultyLevel", newModule.difficultyLevel);
-    formData.append("assignedBatch", JSON.stringify(newModule.assignedBatch));
-    formData.append("file", newModule.file);
+    // Validate all questions
+    for (let i = 0; i < formQuestions.length; i++) {
+      const q = formQuestions[i];
+      if (!q.qn || !q.optionA || !q.optionB || !q.optionC || !q.optionD) {
+        return toast.error(`Please fill all fields for Question ${i + 1}`);
+      }
+    }
 
     try {
-      await axios.post(`${API_URL}/upload`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      await axios.post(`${API_URL}/modules/create`, {
+        topicName: newModule.topicName,
+        courseType: newModule.courseType,
+        difficultyLevel: newModule.difficultyLevel,
+        assignedBatch: newModule.assignedBatch,
+        questions: formQuestions,
+      }, getAdminHeaders());
       toast.success("Module Created Successfully");
       setIsModalOpen(false);
       setNewModule({
@@ -194,26 +269,118 @@ const AdminDashboard = () => {
         courseType: "ASIC-DV",
         difficultyLevel: "Medium",
         assignedBatch: [],
-        file: null,
       });
+      setFormQuestions([{ qn: "", optionA: "", optionB: "", optionC: "", optionD: "", correctAnswer: "A", explanation: "" }]);
       fetchModules();
     } catch (err) {
-      toast.error("Error creating module");
+      toast.error(err.response?.data?.message || "Error creating module");
     }
   };
 
   // Update Module Handler (Timer, Status, Batch)
   const updateModule = async (id, data) => {
     try {
-      await axios.patch(`${API_URL}/modules/${id}`, data);
+      await axios.patch(`${API_URL}/modules/${id}`, data, getAdminHeaders());
       toast.success("Updated successfully");
-      fetchModules(); // Refresh to reflect changes
+      fetchModules();
     } catch (err) {
       toast.error("Update failed");
     }
   };
 
-  // Filter Logic - Performance Optimized with useMemo
+  // Delete Module
+  const deleteModule = async (id, topicName) => {
+    if (!window.confirm(`Are you sure you want to delete "${topicName}"? This will also delete all associated submissions.`)) {
+      return;
+    }
+    try {
+      await axios.delete(`${API_URL}/modules/${id}`, getAdminHeaders());
+      toast.success("Module deleted successfully");
+      fetchModules();
+      if (viewModule && viewModule._id === id) {
+        setViewModule(null);
+      }
+    } catch (err) {
+      toast.error("Failed to delete module");
+    }
+  };
+
+  // --- Question CRUD ---
+  const startEditQuestion = (question) => {
+    setEditingQuestion(question._id);
+    setEditForm({
+      qn: question.qn || question.questionText,
+      optionA: question.options?.[0] || question.options?.A || "",
+      optionB: question.options?.[1] || question.options?.B || "",
+      optionC: question.options?.[2] || question.options?.C || "",
+      optionD: question.options?.[3] || question.options?.D || "",
+      correctAnswer: question.correctAnswer || ['A', 'B', 'C', 'D'][question.options?.indexOf?.(question.answer)] || "A",
+      explanation: question.explanation || "",
+    });
+  };
+
+  const saveEditQuestion = async (moduleId, questionId) => {
+    try {
+      await axios.put(
+        `${API_URL}/modules/${moduleId}/questions/${questionId}`,
+        editForm,
+        getAdminHeaders()
+      );
+      toast.success("Question updated");
+      setEditingQuestion(null);
+      fetchModules();
+      // Refresh the viewModule data
+      const res = await axios.get(`${API_URL}/modules`, getAdminHeaders());
+      const updated = res.data.find(m => m._id === moduleId);
+      if (updated) setViewModule(updated);
+    } catch (err) {
+      toast.error("Failed to update question");
+    }
+  };
+
+  const deleteQuestion = async (moduleId, questionId) => {
+    if (!window.confirm("Delete this question?")) return;
+    try {
+      await axios.delete(
+        `${API_URL}/modules/${moduleId}/questions/${questionId}`,
+        getAdminHeaders()
+      );
+      toast.success("Question deleted");
+      fetchModules();
+      const res = await axios.get(`${API_URL}/modules`, getAdminHeaders());
+      const updated = res.data.find(m => m._id === moduleId);
+      if (updated) setViewModule(updated);
+    } catch (err) {
+      toast.error("Failed to delete question");
+    }
+  };
+
+  // Get questions from module (handles both structures)
+  const getModuleQuestions = (module) => {
+    if (module.module?.quiz?.length > 0) {
+      return module.module.quiz.map(q => ({
+        _id: q._id,
+        qn: q.qn,
+        options: q.options,
+        answer: q.answer,
+        correctAnswer: ['A', 'B', 'C', 'D'][q.options.indexOf(q.answer)] || 'A',
+        explanation: q.explanation,
+      }));
+    }
+    if (module.questions?.length > 0) {
+      return module.questions.map(q => ({
+        _id: q._id,
+        qn: q.questionText,
+        options: [q.options?.A, q.options?.B, q.options?.C, q.options?.D],
+        answer: q.correctValue,
+        correctAnswer: q.correctAnswer,
+        explanation: q.explanation,
+      }));
+    }
+    return [];
+  };
+
+  // Filter Logic
   const filteredModules = React.useMemo(() => {
     return modules.filter((m) => {
       const matchesSearch = m.topicName
@@ -235,14 +402,23 @@ const AdminDashboard = () => {
               Manage electronics assessments and track student performance
             </p>
           </div>
-          <button
-            className="btn btn-primary add-module-btn"
-            onClick={() => setIsModalOpen(true)}
-            title="Add New Module"
-            aria-label="Add New Assessment Module"
-          >
-            <Plus size={28} aria-hidden="true" />
-          </button>
+          <div className="flex gap-3">
+            <button
+              className="btn btn-primary add-module-btn"
+              onClick={() => setIsModalOpen(true)}
+              title="Add New Module"
+              aria-label="Add New Assessment Module"
+            >
+              <Plus size={28} aria-hidden="true" />
+            </button>
+            <button
+              className="btn btn-secondary"
+              onClick={handleLogout}
+              title="Logout"
+            >
+              <LogOut size={18} /> Logout
+            </button>
+          </div>
         </header>
 
         {/* Top Bar / Filters */}
@@ -274,7 +450,65 @@ const AdminDashboard = () => {
           </div>
         </div>
 
-        {/* Modules Grid/List */}
+        {/* ===== TOPIC DESIGNATION CARDS ===== */}
+        <div className="mb-12">
+          <h2 className="mb-6">
+            <Layers size={24} className="text-primary" /> Assessment Modules
+          </h2>
+          <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))" }}>
+            {loading ? (
+              <div className="card flex justify-center py-12">
+                <div className="animate-pulse text-secondary">
+                  Loading modules...
+                </div>
+              </div>
+            ) : (
+              filteredModules.map((module) => {
+                const questions = getModuleQuestions(module);
+                return (
+                  <div key={module._id} className="card" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 className="module-title" style={{ marginBottom: "0.5rem" }}>{module.topicName}</h3>
+                        <div className="flex gap-2 items-center" style={{ flexWrap: "wrap" }}>
+                          <span className="badge badge-primary">{module.courseType}</span>
+                          <span className="badge">{module.difficultyLevel}</span>
+                          <span className="badge" style={{ background: "rgba(16, 185, 129, 0.1)", color: "#10b981", borderColor: "rgba(16, 185, 129, 0.2)" }}>
+                            {questions.length} Qs
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-2" style={{ marginTop: "auto" }}>
+                      <button
+                        className="btn btn-secondary text-xs"
+                        style={{ flex: 1, padding: "0.5rem" }}
+                        onClick={() => setViewModule(module)}
+                      >
+                        <Eye size={14} /> View
+                      </button>
+                      <button
+                        className="btn text-xs"
+                        style={{ flex: 1, padding: "0.5rem", background: "rgba(255, 77, 77, 0.1)", color: "#ff4d4d", border: "1px solid rgba(255, 77, 77, 0.2)" }}
+                        onClick={() => deleteModule(module._id, module.topicName)}
+                      >
+                        <Trash2 size={14} /> Delete
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+            {!loading && filteredModules.length === 0 && (
+              <div className="card text-center py-12 text-secondary" style={{ gridColumn: "1 / -1" }}>
+                <AlertCircle size={48} className="mx-auto mb-4 opacity-20 alert-circle-icon" />
+                <p>No modules found. Click + to create one.</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ===== ACTIVE TRAINING MODULES ===== */}
         <div className="mb-12">
           <h2 className="mb-6">
             <Cpu size={24} className="text-primary" /> Active Training Modules
@@ -378,18 +612,10 @@ const AdminDashboard = () => {
                 </div>
               ))
             )}
-            {!loading && filteredModules.length === 0 && (
-              <div className="card text-center py-12 text-secondary">
-                <AlertCircle
-                  size={48}
-                  className="mx-auto mb-4 opacity-20 alert-circle-icon"
-                />
-                <p>No modules found matching your search criteria.</p>
-              </div>
-            )}
           </div>
         </div>
 
+        {/* ===== PERFORMANCE ANALYTICS ===== */}
         <div className="mb-12">
           <div className="flex justify-between items-center mb-6">
             <h2 className="analytics-header-title">
@@ -480,10 +706,10 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      {/* Add Module Modal */}
+      {/* ===== ADD MODULE MODAL ===== */}
       {isModalOpen && (
         <div className="modal-overlay no-scrollbar">
-          <div className="modal-content fade-in no-scrollbar">
+          <div className="modal-content fade-in no-scrollbar" style={{ maxWidth: "700px" }}>
             <div className="flex justify-between items-top p-6 modal-header">
               <h2>Add Assessment Module</h2>
               <button
@@ -568,27 +794,108 @@ const AdminDashboard = () => {
                   </select>
                 </div>
 
-                <div className="file-upload-container">
-                  <label>Assessment Data (ZIP File)</label>
-                  <div className="relative border-2 border-dashed border-white/10 rounded-xl p-8 text-center hover:border-primary/50 transition-colors bg-white/5">
-                    <input
-                      type="file"
-                      accept=".zip"
-                      onChange={(e) =>
-                        setNewModule({ ...newModule, file: e.target.files[0] })
-                      }
-                      className="file-upload-input"
-                      required
-                    />
-                    <Layers
-                      size={32}
-                      className="mx-auto mb-2 text-secondary file-upload-icon"
-                    />
-                    <p className="text-sm text-secondary">
-                      {newModule.file
-                        ? newModule.file.name
-                        : "Click to upload .zip file (mcqs.json + images/)"}
-                    </p>
+                {/* ===== QUESTIONS SECTION ===== */}
+                <div>
+                  <div className="flex justify-between items-center mb-4">
+                    <label style={{ marginBottom: 0 }}>
+                      Questions ({formQuestions.length})
+                    </label>
+                    <button
+                      type="button"
+                      className="btn btn-primary text-xs"
+                      style={{ padding: "0.4rem 0.8rem" }}
+                      onClick={addQuestion}
+                    >
+                      <PlusCircle size={14} /> Add Question
+                    </button>
+                  </div>
+
+                  <div className="flex flex-col gap-4" style={{ maxHeight: "400px", overflowY: "auto", paddingRight: "0.5rem" }}>
+                    {formQuestions.map((q, index) => (
+                      <div
+                        key={index}
+                        className="p-4 rounded-xl border border-white/10"
+                        style={{ background: "rgba(0,0,0,0.3)" }}
+                      >
+                        <div className="flex justify-between items-center mb-3">
+                          <span className="text-xs text-primary font-bold">
+                            Q{index + 1}
+                          </span>
+                          {formQuestions.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removeQuestion(index)}
+                              className="text-danger"
+                              style={{ background: "none", border: "none", cursor: "pointer" }}
+                            >
+                              <Minus size={16} />
+                            </button>
+                          )}
+                        </div>
+
+                        <input
+                          placeholder="Enter question"
+                          value={q.qn}
+                          onChange={(e) => updateQuestion(index, "qn", e.target.value)}
+                          required
+                          style={{ marginBottom: "0.75rem" }}
+                        />
+                        <div className="grid gap-2" style={{ gridTemplateColumns: "1fr 1fr" }}>
+                          <input
+                            placeholder="Option A"
+                            value={q.optionA}
+                            onChange={(e) => updateQuestion(index, "optionA", e.target.value)}
+                            required
+                            style={{ marginBottom: "0.5rem" }}
+                          />
+                          <input
+                            placeholder="Option B"
+                            value={q.optionB}
+                            onChange={(e) => updateQuestion(index, "optionB", e.target.value)}
+                            required
+                            style={{ marginBottom: "0.5rem" }}
+                          />
+                          <input
+                            placeholder="Option C"
+                            value={q.optionC}
+                            onChange={(e) => updateQuestion(index, "optionC", e.target.value)}
+                            required
+                            style={{ marginBottom: "0.5rem" }}
+                          />
+                          <input
+                            placeholder="Option D"
+                            value={q.optionD}
+                            onChange={(e) => updateQuestion(index, "optionD", e.target.value)}
+                            required
+                            style={{ marginBottom: "0.5rem" }}
+                          />
+                        </div>
+                        <div className="flex gap-3">
+                          <div style={{ width: "140px" }}>
+                            <label className="text-xs">Correct Answer</label>
+                            <select
+                              value={q.correctAnswer}
+                              onChange={(e) => updateQuestion(index, "correctAnswer", e.target.value)}
+                              style={{ marginBottom: "0.5rem" }}
+                            >
+                              <option value="A">A</option>
+                              <option value="B">B</option>
+                              <option value="C">C</option>
+                              <option value="D">D</option>
+                            </select>
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <label className="text-xs">Explanation (optional)</label>
+                            <input
+                              placeholder="Why is this the correct answer?"
+                              value={q.explanation}
+                              onChange={(e) => updateQuestion(index, "explanation", e.target.value)}
+                              style={{ marginBottom: "0.5rem" }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -602,10 +909,175 @@ const AdminDashboard = () => {
                   Cancel
                 </button>
                 <button type="submit" className="btn btn-primary">
-                  Submit
+                  Create Module ({formQuestions.length} Questions)
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ===== VIEW/EDIT QUESTIONS MODAL ===== */}
+      {viewModule && (
+        <div className="modal-overlay no-scrollbar">
+          <div className="modal-content fade-in no-scrollbar" style={{ maxWidth: "800px" }}>
+            <div className="flex justify-between items-top p-6 modal-header">
+              <div>
+                <h2>{viewModule.topicName}</h2>
+                <div className="flex gap-2 mt-2">
+                  <span className="badge badge-primary">{viewModule.courseType}</span>
+                  <span className="badge">{viewModule.difficultyLevel}</span>
+                </div>
+              </div>
+              <button
+                onClick={() => { setViewModule(null); setEditingQuestion(null); }}
+                className="text-secondary hover:text-white transition-colors close-modal-btn"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="modal-form-body" style={{ maxHeight: "70vh", overflowY: "auto" }}>
+              {getModuleQuestions(viewModule).map((q, index) => (
+                <div
+                  key={q._id}
+                  className="p-4 mb-4 rounded-xl border border-white/10"
+                  style={{ background: "rgba(0,0,0,0.2)" }}
+                >
+                  {editingQuestion === q._id ? (
+                    // EDIT MODE
+                    <div>
+                      <div className="flex justify-between items-center mb-3">
+                        <span className="text-xs text-warning font-bold">Editing Q{index + 1}</span>
+                      </div>
+                      <input
+                        value={editForm.qn}
+                        onChange={(e) => setEditForm({ ...editForm, qn: e.target.value })}
+                        placeholder="Question"
+                        style={{ marginBottom: "0.75rem" }}
+                      />
+                      <div className="grid gap-2" style={{ gridTemplateColumns: "1fr 1fr" }}>
+                        <input
+                          placeholder="Option A"
+                          value={editForm.optionA}
+                          onChange={(e) => setEditForm({ ...editForm, optionA: e.target.value })}
+                          style={{ marginBottom: "0.5rem" }}
+                        />
+                        <input
+                          placeholder="Option B"
+                          value={editForm.optionB}
+                          onChange={(e) => setEditForm({ ...editForm, optionB: e.target.value })}
+                          style={{ marginBottom: "0.5rem" }}
+                        />
+                        <input
+                          placeholder="Option C"
+                          value={editForm.optionC}
+                          onChange={(e) => setEditForm({ ...editForm, optionC: e.target.value })}
+                          style={{ marginBottom: "0.5rem" }}
+                        />
+                        <input
+                          placeholder="Option D"
+                          value={editForm.optionD}
+                          onChange={(e) => setEditForm({ ...editForm, optionD: e.target.value })}
+                          style={{ marginBottom: "0.5rem" }}
+                        />
+                      </div>
+                      <div className="flex gap-3">
+                        <div style={{ width: "140px" }}>
+                          <label className="text-xs">Correct Answer</label>
+                          <select
+                            value={editForm.correctAnswer}
+                            onChange={(e) => setEditForm({ ...editForm, correctAnswer: e.target.value })}
+                          >
+                            <option value="A">A</option>
+                            <option value="B">B</option>
+                            <option value="C">C</option>
+                            <option value="D">D</option>
+                          </select>
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <label className="text-xs">Explanation</label>
+                          <input
+                            value={editForm.explanation}
+                            onChange={(e) => setEditForm({ ...editForm, explanation: e.target.value })}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex gap-2 mt-3">
+                        <button
+                          className="btn btn-primary text-xs"
+                          style={{ padding: "0.4rem 0.8rem" }}
+                          onClick={() => saveEditQuestion(viewModule._id, q._id)}
+                        >
+                          <Save size={14} /> Save
+                        </button>
+                        <button
+                          className="btn btn-secondary text-xs"
+                          style={{ padding: "0.4rem 0.8rem" }}
+                          onClick={() => setEditingQuestion(null)}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    // VIEW MODE
+                    <div>
+                      <div className="flex justify-between items-start mb-2">
+                        <span className="text-xs text-primary font-bold">Q{index + 1}</span>
+                        <div className="flex gap-2">
+                          <button
+                            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--primary-color)" }}
+                            onClick={() => startEditQuestion(q)}
+                            title="Edit question"
+                          >
+                            <Edit3 size={16} />
+                          </button>
+                          <button
+                            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--danger-color)" }}
+                            onClick={() => deleteQuestion(viewModule._id, q._id)}
+                            title="Delete question"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </div>
+                      <p style={{ fontWeight: 600, marginBottom: "0.75rem" }}>{q.qn}</p>
+                      <div className="grid gap-2" style={{ gridTemplateColumns: "1fr 1fr" }}>
+                        {['A', 'B', 'C', 'D'].map((letter, i) => (
+                          <div
+                            key={letter}
+                            className="p-2 rounded-lg text-sm"
+                            style={{
+                              background: q.correctAnswer === letter
+                                ? "rgba(16, 185, 129, 0.15)"
+                                : "rgba(255,255,255,0.03)",
+                              border: q.correctAnswer === letter
+                                ? "1px solid rgba(16, 185, 129, 0.3)"
+                                : "1px solid rgba(255,255,255,0.05)",
+                              color: q.correctAnswer === letter
+                                ? "#10b981"
+                                : "var(--text-secondary)",
+                            }}
+                          >
+                            <span style={{ fontWeight: 700, marginRight: "0.5rem" }}>{letter}.</span>
+                            {q.options[i]}
+                          </div>
+                        ))}
+                      </div>
+                      {q.explanation && (
+                        <p className="text-xs text-secondary mt-2" style={{ fontStyle: "italic" }}>
+                          💡 {q.explanation}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+              {getModuleQuestions(viewModule).length === 0 && (
+                <p className="text-center text-secondary py-8">No questions in this module.</p>
+              )}
+            </div>
           </div>
         </div>
       )}

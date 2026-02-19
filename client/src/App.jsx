@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { Terminal, ShieldCheck, Zap } from "lucide-react";
 import AdminDashboard from "./components/AdminDashboard";
+import AdminLogin from "./components/AdminLogin";
 import InstructionPage from "./components/InstructionPage";
 import AssessmentPage from "./components/AssessmentPage";
 import AssessmentReport from "./components/AssessmentReport";
@@ -26,7 +27,7 @@ const Home = () => (
       <Link to="/login" className="btn btn-primary landing-btn">
         <ShieldCheck size={20} /> Start Candidate Assessment
       </Link>
-      <Link to="/admin" className="btn btn-secondary landing-btn">
+      <Link to="/control-center" className="btn btn-secondary landing-btn">
         <Terminal size={20} /> Control Center
       </Link>
     </div>
@@ -76,6 +77,7 @@ function App() {
       />
       <Routes>
         <Route path="/" element={<Home />} />
+        <Route path="/control-center" element={<AdminLogin />} />
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />

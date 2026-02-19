@@ -21,6 +21,7 @@ const Login = () => {
       const res = await axios.post(`${API_URL}/login`, formData);
       toast.success("Login Successful!");
       localStorage.setItem("candidateUser", JSON.stringify(res.data.user));
+      localStorage.setItem("candidateToken", res.data.token);
       navigate("/candidate-dashboard");
     } catch (err) {
       toast.error(err.response?.data?.message || "Login failed");

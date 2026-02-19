@@ -25,14 +25,15 @@ const CandidateDashboard = () => {
 
   useEffect(() => {
     const storedUser = localStorage.getItem("candidateUser");
-    if (!storedUser) {
+    const token = localStorage.getItem("candidateToken");
+    if (!storedUser || !token) {
       navigate("/login");
       return;
     }
     const userData = JSON.parse(storedUser);
     setUser(userData);
     fetchActiveAssessment(userData.batch);
-    fetchUserSubmissions(userData.name);
+    fetchUserSubmissions(userData.name, token);
   }, [navigate]);
 
   const fetchActiveAssessment = async (batch) => {
@@ -45,10 +46,12 @@ const CandidateDashboard = () => {
     }
   };
 
-  const fetchUserSubmissions = async (userName) => {
+  const fetchUserSubmissions = async (userName, token) => {
     try {
+      const tkn = token || localStorage.getItem("candidateToken");
       const res = await axios.get(
         `${API_URL}/candidate-submissions/${userName}`,
+        { headers: { Authorization: `Bearer ${tkn}` } }
       );
       setSubmissions(res.data);
     } catch (err) {
@@ -60,6 +63,7 @@ const CandidateDashboard = () => {
 
   const handleLogout = () => {
     localStorage.removeItem("candidateUser");
+    localStorage.removeItem("candidateToken");
     navigate("/login");
   };
 

@@ -166,7 +166,10 @@ const AssessmentPage = () => {
     };
 
     try {
-      const res = await axios.post(`${API_URL}/submit`, payload);
+      const token = localStorage.getItem("candidateToken");
+      const res = await axios.post(`${API_URL}/submit`, payload, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       setSubmissionResult(res.data.result);
       setSubmissionId(res.data.submissionId);
       if (auto) toast("Assessment auto-submitted: Time Expired.");
