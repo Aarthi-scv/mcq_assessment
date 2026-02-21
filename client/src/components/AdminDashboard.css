@@ -5,14 +5,19 @@
 }
 
 .add-module-btn {
-  width: 56px;
-  height: 56px;
-  border-radius: 16px;
-  padding: 0;
+  height: 37px;
+  padding: 5px;
+}
+
+.logout-btn {
+  padding: 18px 8px;
+  font-size: 0.85rem;
+  height: 35px;
+
 }
 
 .top-bar-filters {
-  padding: 1rem 1.5rem;
+  padding: 4px 6px;
 }
 
 .search-input-wrapper {
@@ -80,7 +85,7 @@
 }
 
 .score-divider {
-  border-top: 1px solid rgba(255,255,255,0.05);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .modal-header {
@@ -98,7 +103,7 @@
 }
 
 .modal-form-body {
-  padding: 1.5rem;
+  padding: 10px;
 }
 
 .flex-1 {

@@ -23,8 +23,6 @@ import {
   Eye,
   Save,
   LogOut,
-  PlusCircle,
-  Minus,
 } from "lucide-react";
 import "./AdminDashboard.css";
 
@@ -148,26 +146,21 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterCourse, setFilterCourse] = useState("All");
-  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // View/Edit Questions Modal State
   const [viewModule, setViewModule] = useState(null);
   const [editingQuestion, setEditingQuestion] = useState(null);
   const [editForm, setEditForm] = useState({});
 
-  // Form State — NEW: individual question entry
-  const [newModule, setNewModule] = useState({
-    topicName: "",
-    courseType: "ASIC-DV",
-    difficultyLevel: "Medium",
-    assignedBatch: [],
-  });
-  const [formQuestions, setFormQuestions] = useState([
-    { qn: "", optionA: "", optionB: "", optionC: "", optionD: "", correctAnswer: "A", explanation: "" }
-  ]);
-
   // Auth check on mount
   useEffect(() => {
+    const isDev = window.location.hostname === "localhost";
+    if (isDev) {
+      // Skip auth in local development
+      fetchModules();
+      fetchSubmissions();
+      return;
+    }
     const token = localStorage.getItem("adminToken");
     if (!token) {
       navigate("/control-center");
@@ -395,9 +388,9 @@ const AdminDashboard = () => {
   return (
     <>
       <div className="container fade-in">
-        <header className="flex justify-between items-end mb-8 admin-header">
+        <header className="flex justify-between items-end mb-4 admin-header items-center">
           <div>
-            <h1 className="text-3xl">Admin Control Center</h1>
+            <h1 className="text-lg">Admin Control Center</h1>
             <p className="text-secodary">
               Manage electronics assessments and track student performance
             </p>
@@ -405,25 +398,26 @@ const AdminDashboard = () => {
           <div className="flex gap-3">
             <button
               className="btn btn-primary add-module-btn"
-              onClick={() => setIsModalOpen(true)}
+              onClick={() => navigate("/admin/create-module")}
               title="Add New Module"
               aria-label="Add New Assessment Module"
             >
               <Plus size={28} aria-hidden="true" />
+              Add Module
             </button>
             <button
-              className="btn btn-secondary"
+              className="btn btn-secondary logout-btn"
               onClick={handleLogout}
               title="Logout"
             >
-              <LogOut size={18} /> Logout
+              <LogOut size={16} /> Logout
             </button>
           </div>
         </header>
 
         {/* Top Bar / Filters */}
-        <div className="card flex gap-4 items-center mb-8 top-bar-filters">
-          <div className="flex items-center flex-1 gap-3 px-4 py-2 bg-black/20 rounded-xl border border-white/5">
+        <div className="card flex gap-4 items-center mb-2 top-bar-filters">
+          <div className="flex items-center flex-1 gap-3 px-1 py-1 bg-black/20 rounded-xl border border-white/5">
             <Search size={18} className="text-secondary" />
             <input
               type="text"
@@ -706,222 +700,11 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      {/* ===== ADD MODULE MODAL ===== */}
-      {isModalOpen && (
-        <div className="modal-overlay no-scrollbar">
-          <div className="modal-content fade-in no-scrollbar" style={{ maxWidth: "700px" }}>
-            <div className="flex justify-between items-top p-6 modal-header">
-              <h2>Add Assessment Module</h2>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="text-secondary hover:text-white transition-colors close-modal-btn"
-              >
-                <X size={24} />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreate} className="modal-form-body">
-              <div className="grid gap-4">
-                <div>
-                  <label>Topic Designation</label>
-                  <input
-                    value={newModule.topicName}
-                    onChange={(e) =>
-                      setNewModule({ ...newModule, topicName: e.target.value })
-                    }
-                    placeholder="e.g., Verilog Logic Synthesis"
-                    required
-                  />
-                </div>
-
-                <div className="flex gap-4">
-                  <div className="flex-1">
-                    <label htmlFor="course-type">Course Type</label>
-                    <select
-                      id="course-type"
-                      value={newModule.courseType}
-                      onChange={(e) =>
-                        setNewModule({
-                          ...newModule,
-                          courseType: e.target.value,
-                        })
-                      }
-                    >
-                      <option value="ASIC-DV">ASIC-DV</option>
-                      <option value="Embedded">Embedded Systems</option>
-                      <option value="VLSI">VLSI Design</option>
-                    </select>
-                  </div>
-                  <div className="flex-1">
-                    <label htmlFor="complexity-level">Complexity Level</label>
-                    <select
-                      id="complexity-level"
-                      value={newModule.difficultyLevel}
-                      onChange={(e) =>
-                        setNewModule({
-                          ...newModule,
-                          difficultyLevel: e.target.value,
-                        })
-                      }
-                    >
-                      <option value="Easy">Easy</option>
-                      <option value="Medium">Medium</option>
-                      <option value="Hard">Hard</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label>Target Batch</label>
-                  <select
-                    value={newModule.assignedBatch[0] || ""}
-                    onChange={(e) =>
-                      setNewModule({
-                        ...newModule,
-                        assignedBatch: [e.target.value],
-                      })
-                    }
-                    required
-                  >
-                    <option value="" disabled>
-                      Select Target Batch
-                    </option>
-                    {BATCH_OPTIONS.map((batch) => (
-                      <option key={batch} value={batch}>
-                        {batch}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* ===== QUESTIONS SECTION ===== */}
-                <div>
-                  <div className="flex justify-between items-center mb-4">
-                    <label style={{ marginBottom: 0 }}>
-                      Questions ({formQuestions.length})
-                    </label>
-                    <button
-                      type="button"
-                      className="btn btn-primary text-xs"
-                      style={{ padding: "0.4rem 0.8rem" }}
-                      onClick={addQuestion}
-                    >
-                      <PlusCircle size={14} /> Add Question
-                    </button>
-                  </div>
-
-                  <div className="flex flex-col gap-4" style={{ maxHeight: "400px", overflowY: "auto", paddingRight: "0.5rem" }}>
-                    {formQuestions.map((q, index) => (
-                      <div
-                        key={index}
-                        className="p-4 rounded-xl border border-white/10"
-                        style={{ background: "rgba(0,0,0,0.3)" }}
-                      >
-                        <div className="flex justify-between items-center mb-3">
-                          <span className="text-xs text-primary font-bold">
-                            Q{index + 1}
-                          </span>
-                          {formQuestions.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() => removeQuestion(index)}
-                              className="text-danger"
-                              style={{ background: "none", border: "none", cursor: "pointer" }}
-                            >
-                              <Minus size={16} />
-                            </button>
-                          )}
-                        </div>
-
-                        <input
-                          placeholder="Enter question"
-                          value={q.qn}
-                          onChange={(e) => updateQuestion(index, "qn", e.target.value)}
-                          required
-                          style={{ marginBottom: "0.75rem" }}
-                        />
-                        <div className="grid gap-2" style={{ gridTemplateColumns: "1fr 1fr" }}>
-                          <input
-                            placeholder="Option A"
-                            value={q.optionA}
-                            onChange={(e) => updateQuestion(index, "optionA", e.target.value)}
-                            required
-                            style={{ marginBottom: "0.5rem" }}
-                          />
-                          <input
-                            placeholder="Option B"
-                            value={q.optionB}
-                            onChange={(e) => updateQuestion(index, "optionB", e.target.value)}
-                            required
-                            style={{ marginBottom: "0.5rem" }}
-                          />
-                          <input
-                            placeholder="Option C"
-                            value={q.optionC}
-                            onChange={(e) => updateQuestion(index, "optionC", e.target.value)}
-                            required
-                            style={{ marginBottom: "0.5rem" }}
-                          />
-                          <input
-                            placeholder="Option D"
-                            value={q.optionD}
-                            onChange={(e) => updateQuestion(index, "optionD", e.target.value)}
-                            required
-                            style={{ marginBottom: "0.5rem" }}
-                          />
-                        </div>
-                        <div className="flex gap-3">
-                          <div style={{ width: "140px" }}>
-                            <label className="text-xs">Correct Answer</label>
-                            <select
-                              value={q.correctAnswer}
-                              onChange={(e) => updateQuestion(index, "correctAnswer", e.target.value)}
-                              style={{ marginBottom: "0.5rem" }}
-                            >
-                              <option value="A">A</option>
-                              <option value="B">B</option>
-                              <option value="C">C</option>
-                              <option value="D">D</option>
-                            </select>
-                          </div>
-                          <div style={{ flex: 1 }}>
-                            <label className="text-xs">Explanation (optional)</label>
-                            <input
-                              placeholder="Why is this the correct answer?"
-                              value={q.explanation}
-                              onChange={(e) => updateQuestion(index, "explanation", e.target.value)}
-                              style={{ marginBottom: "0.5rem" }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3 mt-8">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setIsModalOpen(false)}
-                >
-                  Cancel
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  Create Module ({formQuestions.length} Questions)
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
       {/* ===== VIEW/EDIT QUESTIONS MODAL ===== */}
       {viewModule && (
         <div className="modal-overlay no-scrollbar">
           <div className="modal-content fade-in no-scrollbar" style={{ maxWidth: "800px" }}>
-            <div className="flex justify-between items-top p-6 modal-header">
+            <div className="flex justify-between items-top p-3 modal-header">
               <div>
                 <h2>{viewModule.topicName}</h2>
                 <div className="flex gap-2 mt-2">
@@ -931,7 +714,7 @@ const AdminDashboard = () => {
               </div>
               <button
                 onClick={() => { setViewModule(null); setEditingQuestion(null); }}
-                className="text-secondary hover:text-white transition-colors close-modal-btn"
+                className="text-secondary close-modal-btn"
               >
                 <X size={24} />
               </button>
