@@ -22,13 +22,14 @@ function createTransporter() {
   return nodemailer.createTransport({
     host: 'smtp.gmail.com',
     port: 587,
-    secure: false,        // false = STARTTLS (works on Render & most cloud hosts)
-    requireTLS: true,     // force TLS upgrade
+    secure: false,        // false = STARTTLS
+    requireTLS: true,
+    family: 4,            // ← Force IPv4 (Render blocks outbound IPv6)
     auth: { user, pass },
     tls: {
       rejectUnauthorized: false,
     },
-    connectionTimeout: 10000,   // 10 s
+    connectionTimeout: 10000,
     greetingTimeout: 10000,
     socketTimeout: 15000,
   });
