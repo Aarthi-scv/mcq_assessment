@@ -472,6 +472,8 @@ const AdminDashboard = () => {
       return module.module.quiz.map(q => ({
         _id: q._id,
         qn: q.qn,
+        codeSnippet: q.codeSnippet || '',
+        questionType: q.questionType || 'plain',
         options: q.options,
         answer: q.answer,
         correctAnswer: ['A', 'B', 'C', 'D'][q.options.indexOf(q.answer)] || 'A',
@@ -482,6 +484,8 @@ const AdminDashboard = () => {
       return module.questions.map(q => ({
         _id: q._id,
         qn: q.questionText,
+        codeSnippet: q.codeSnippet || '',
+        questionType: q.questionType || 'plain',
         options: [q.options?.A, q.options?.B, q.options?.C, q.options?.D],
         answer: q.correctValue,
         correctAnswer: q.correctAnswer,
@@ -970,15 +974,18 @@ const AdminDashboard = () => {
                           </button>
                         </div>
                       </div>
-                      {q.questionType === "code" ? (
+                      {/* Question text — always shown */}
+                      <p style={{ fontWeight: 600, marginBottom: q.questionType === "code" && q.codeSnippet ? "0.4rem" : "0.75rem" }}>
+                        {q.qn}
+                      </p>
+                      {/* Code block — only for code-type questions */}
+                      {q.questionType === "code" && q.codeSnippet && (
                         <pre style={{
                           fontFamily: "'Courier New', monospace", fontSize: "0.82rem",
-                          background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.07)",
+                          background: "rgba(0,0,0,0.4)", border: "1px solid rgba(0,245,255,0.15)",
                           borderRadius: "8px", padding: "0.75rem", marginBottom: "0.75rem",
-                          whiteSpace: "pre-wrap", wordBreak: "break-word", color: "var(--text-primary)",
-                        }}>{q.qn}</pre>
-                      ) : (
-                        <p style={{ fontWeight: 600, marginBottom: "0.75rem" }}>{q.qn}</p>
+                          whiteSpace: "pre-wrap", wordBreak: "break-word", color: "#7dd3fc",
+                        }}>{q.codeSnippet}</pre>
                       )}
                       <div className="grid gap-2" style={{ gridTemplateColumns: "1fr 1fr" }}>
                         {['A', 'B', 'C', 'D'].map((letter, i) => (

@@ -755,6 +755,8 @@ router.get('/assessment-report/:submissionId', async (req, res) => {
       moduleQuestions = module.module.quiz.map(q => ({
         _id: q._id,
         questionText: q.qn,
+        codeSnippet: q.codeSnippet || '',
+        questionType: q.questionType || 'plain',
         questionImage: q.questionImage,
         options: {
           A: q.options[0],
@@ -775,6 +777,8 @@ router.get('/assessment-report/:submissionId', async (req, res) => {
 
       return {
         questionText: q.questionText,
+        codeSnippet: q.codeSnippet || '',
+        questionType: q.questionType || 'plain',
         questionImage: q.questionImage,
         options: q.options,
         userAnswer: ans ? ans.selectedOption : null,

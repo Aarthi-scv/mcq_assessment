@@ -140,11 +140,34 @@ const AssessmentReport = () => {
             {/* Question Header */}
             <div className="flex flex-col gap-4 mb-4">
               <div className="flex justify-between items-start">
-                <h3 className="q-header">
-                  <span className="q-number-report">Q{index + 1}.</span>
-                  {item.questionText}
-                </h3>
-                <div className="flex items-center gap-2">
+                <div style={{ flex: 1 }}>
+                  <h3 className="q-header">
+                    <span className="q-number-report">Q{index + 1}.</span>
+                    {item.questionText}
+                  </h3>
+                  {/* Code block — only for code-type questions */}
+                  {item.questionType === "code" && item.codeSnippet && (
+                    <pre
+                      style={{
+                        fontFamily: "'Courier New', Courier, monospace",
+                        fontSize: "0.85rem",
+                        lineHeight: 1.7,
+                        background: "rgba(0,0,0,0.4)",
+                        border: "1px solid rgba(0,245,255,0.15)",
+                        borderRadius: "10px",
+                        padding: "1rem",
+                        marginTop: "0.75rem",
+                        whiteSpace: "pre-wrap",
+                        wordBreak: "break-word",
+                        overflowX: "hidden",
+                        color: "#7dd3fc",
+                      }}
+                    >
+                      {item.codeSnippet}
+                    </pre>
+                  )}
+                </div>
+                <div className="flex items-center gap-2" style={{ marginLeft: "1rem", flexShrink: 0 }}>
                   {item.isCorrect ? (
                     <CheckCircle size={24} className="text-secondary" />
                   ) : item.userAnswer ? (
