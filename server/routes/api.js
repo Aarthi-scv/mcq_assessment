@@ -57,10 +57,20 @@ router.post('/send-otp', async (req, res) => {
     console.log(`OTP sent to ${email} for registration`);
     res.json({ message: 'OTP sent successfully. Please check your email.' });
   } catch (err) {
-    console.error('Send OTP Error:', err);
-    res.status(500).json({ message: 'Failed to send OTP. Please check your email address and try again.' });
+    // Log full error details to server console for debugging
+    console.error('Send OTP Error — code:', err.code);
+    console.error('Send OTP Error — message:', err.message);
+    console.error('Send OTP Error — full:', err);
+
+    // Return the real error so it's visible during troubleshooting
+    res.status(500).json({
+      message: 'Failed to send OTP',
+      detail: err.message || 'Unknown error',
+      code: err.code || null,
+    });
   }
 });
+
 
 // Step 2 – Verify OTP and complete registration
 router.post('/register', async (req, res) => {

@@ -1,18 +1,38 @@
 const nodemailer = require('nodemailer');
 
 /**
- * Creates a nodemailer transporter using Gmail SMTP credentials from .env
+ * Creates a nodemailer transporter.
+ * Uses Gmail SMTP on port 587 (STARTTLS) — more reliable on cloud hosts
+ * like Render, Railway, Heroku etc. where port 465 (SSL) is often blocked.
+ *
  * Required env vars:
- *   MAIL_USER  – Gmail address (e.g. yourapp@gmail.com)
- *   MAIL_PASS  – Gmail App Password (not your regular password)
+ *   MAIL_USER  – Gmail address  (e.g. yourapp@gmail.com)
+ *   MAIL_PASS  – Gmail App Password  (16-char, spaces OK)
  */
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: process.env.MAIL_USER,
-        pass: process.env.MAIL_PASS,
+function createTransporter() {
+  const user = process.env.MAIL_USER;
+  const pass = process.env.MAIL_PASS;
+
+  if (!user || !pass) {
+    throw new Error(
+      'Email not configured. Set MAIL_USER and MAIL_PASS in environment variables.'
+    );
+  }
+
+  return nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false,        // false = STARTTLS (works on Render & most cloud hosts)
+    requireTLS: true,     // force TLS upgrade
+    auth: { user, pass },
+    tls: {
+      rejectUnauthorized: false,
     },
-});
+    connectionTimeout: 10000,   // 10 s
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
+  });
+}
 
 /**
  * Sends a 6-digit OTP to the candidate's email.
@@ -21,11 +41,13 @@ const transporter = nodemailer.createTransport({
  * @param {string} otp       6-digit OTP string
  */
 async function sendOtpEmail(toEmail, name, otp) {
-    const mailOptions = {
-        from: `"MCQ Assessment Platform" <${process.env.MAIL_USER}>`,
-        to: toEmail,
-        subject: 'Your OTP for Registration – MCQ Assessment',
-        html: `
+  const transporter = createTransporter();
+
+  const mailOptions = {
+    from: `"MCQ Assessment Platform" <${process.env.MAIL_USER}>`,
+    to: toEmail,
+    subject: 'Your OTP for Registration – MCQ Assessment',
+    html: `
       <div style="font-family: Arial, sans-serif; max-width: 480px; margin: auto;
                   background: #0d1117; color: #e6edf3; padding: 32px; border-radius: 12px;
                   border: 1px solid #30363d;">
@@ -33,7 +55,8 @@ async function sendOtpEmail(toEmail, name, otp) {
         <p style="color: #8b949e; margin-bottom: 24px;">Email Verification</p>
 
         <p>Hi <strong>${name}</strong>,</p>
-        <p>Use the OTP below to complete your registration. It expires in <strong>10 minutes</strong>.</p>
+        <p>Use the OTP below to complete your registration.
+           It expires in <strong>10 minutes</strong>.</p>
 
         <div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px;
                     padding: 24px; text-align: center; margin: 24px 0;">
@@ -50,9 +73,11 @@ async function sendOtpEmail(toEmail, name, otp) {
         </p>
       </div>
     `,
-    };
+  };
 
-    await transporter.sendMail(mailOptions);
+  const info = await transporter.sendMail(mailOptions);
+  console.log('OTP email sent:', info.messageId, '→', toEmail);
+  return info;
 }
 
 module.exports = { sendOtpEmail };
