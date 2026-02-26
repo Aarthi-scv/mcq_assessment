@@ -612,6 +612,7 @@ router.get('/questions/:moduleId', async (req, res) => {
       questionsToReturn = module.module.quiz.map(q => ({
         _id: q._id,
         questionText: q.qn,
+        codeSnippet: q.codeSnippet || '',
         questionType: q.questionType || 'plain',
         optionType: q.optionType || 'multiple',
         questionImage: q.questionImage,

@@ -20,30 +20,32 @@ const QuestionCard = ({
       <div className="flex flex-col gap-4 mb-6">
         <div>
           <span className="question-number">Question {index + 1}</span>
-          {isCode ? (
-            /* Code-type question: full monospace block, no scroll */
+
+          {/* Question text — always shown as a readable heading */}
+          <h3 className="question-title" style={{ marginTop: "0.4rem" }}>
+            {question.questionText}
+          </h3>
+
+          {/* Code block — only shown for code-type questions */}
+          {isCode && question.codeSnippet && (
             <pre
               style={{
                 fontFamily: "'Courier New', Courier, monospace",
                 fontSize: "0.88rem",
                 lineHeight: 1.7,
-                background: "rgba(0,0,0,0.35)",
-                border: "1px solid rgba(255,255,255,0.08)",
+                background: "rgba(0,0,0,0.4)",
+                border: "1px solid rgba(0,245,255,0.15)",
                 borderRadius: "10px",
                 padding: "1rem",
-                marginTop: "0.6rem",
-                whiteSpace: "pre-wrap",      /* wrap long lines */
+                marginTop: "0.75rem",
+                whiteSpace: "pre-wrap",
                 wordBreak: "break-word",
-                overflowX: "hidden",         /* no horizontal scroll */
-                color: "var(--text-primary)",
+                overflowX: "hidden",
+                color: "#7dd3fc",
               }}
             >
-              {question.questionText}
+              {question.codeSnippet}
             </pre>
-          ) : (
-            <h3 className="question-title" style={{ marginTop: "0.4rem" }}>
-              {question.questionText}
-            </h3>
           )}
         </div>
 
