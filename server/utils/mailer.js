@@ -1,55 +1,33 @@
-const nodemailer = require('nodemailer');
-const dns = require('dns');
-
-// ─── CRITICAL FIX FOR RENDER / CLOUD HOSTS ───────────────────────────────────
-// Render's servers resolve hostnames to IPv6 by default, but outbound
-// IPv6 connections are blocked (ENETUNREACH). This forces the Node.js DNS
-// resolver to always prefer IPv4 addresses for ALL lookups in this process.
-dns.setDefaultResultOrder('ipv4first');
-// ─────────────────────────────────────────────────────────────────────────────
+const { Resend } = require('resend');
 
 /**
- * Creates a nodemailer transporter using Gmail SMTP (port 587 / STARTTLS).
- * Required env vars:
- *   MAIL_USER  – Gmail address  (e.g. yourapp@gmail.com)
- *   MAIL_PASS  – Gmail App Password  (16-char, spaces OK)
- */
-function createTransporter() {
-  const user = process.env.MAIL_USER;
-  const pass = process.env.MAIL_PASS;
-
-  if (!user || !pass) {
-    throw new Error(
-      'Email not configured. Set MAIL_USER and MAIL_PASS in environment variables.'
-    );
-  }
-
-  return nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false,    // STARTTLS
-    requireTLS: true,
-    family: 4,        // belt-and-suspenders IPv4 enforcement at socket level
-    auth: { user, pass },
-    tls: { rejectUnauthorized: false },
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 15000,
-  });
-}
-
-/**
- * Sends a 6-digit OTP to the candidate's email.
- * @param {string} toEmail   Recipient email address
- * @param {string} name      Candidate's name (for personalisation)
- * @param {string} otp       6-digit OTP string
+ * Sends a 6-digit OTP to the candidate's email via Resend HTTP API.
+ * Uses HTTPS (port 443) — works on ALL cloud platforms including Render free tier.
+ *
+ * Required env var:
+ *   RESEND_API_KEY  – from resend.com dashboard
+ *   MAIL_FROM       – verified sender address  e.g.  noreply@yourdomain.com
+ *                     (use  onboarding@resend.dev  if you have no custom domain yet)
+ *
+ * @param {string} toEmail  Recipient email
+ * @param {string} name     Candidate name (personalisation)
+ * @param {string} otp      6-digit OTP string
  */
 async function sendOtpEmail(toEmail, name, otp) {
-  const transporter = createTransporter();
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    throw new Error('RESEND_API_KEY is not set in environment variables.');
+  }
 
-  const mailOptions = {
-    from: `"MCQ Assessment Platform" <${process.env.MAIL_USER}>`,
-    to: toEmail,
+  const resend = new Resend(apiKey);
+
+  // MAIL_FROM should be a verified sender in your Resend dashboard.
+  // If you haven't verified a domain yet, use: onboarding@resend.dev
+  const from = process.env.MAIL_FROM || 'onboarding@resend.dev';
+
+  const { data, error } = await resend.emails.send({
+    from: `MCQ Assessment Platform <${from}>`,
+    to: [toEmail],
     subject: 'Your OTP for Registration – MCQ Assessment',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 480px; margin: auto;
@@ -65,7 +43,7 @@ async function sendOtpEmail(toEmail, name, otp) {
         <div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px;
                     padding: 24px; text-align: center; margin: 24px 0;">
           <span style="font-size: 42px; letter-spacing: 12px; font-weight: 700;
-                        color: #00f5ff; font-family: monospace;">${otp}</span>
+                       color: #00f5ff; font-family: monospace;">${otp}</span>
         </div>
 
         <p style="color: #8b949e; font-size: 13px;">
@@ -77,11 +55,15 @@ async function sendOtpEmail(toEmail, name, otp) {
         </p>
       </div>
     `,
-  };
+  });
 
-  const info = await transporter.sendMail(mailOptions);
-  console.log('OTP email sent:', info.messageId, '→', toEmail);
-  return info;
+  if (error) {
+    console.error('Resend error:', error);
+    throw new Error(error.message || 'Failed to send email via Resend');
+  }
+
+  console.log('OTP email sent via Resend:', data?.id, '→', toEmail);
+  return data;
 }
 
 module.exports = { sendOtpEmail };

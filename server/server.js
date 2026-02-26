@@ -1,7 +1,3 @@
-// Force IPv4 DNS resolution — must be first line before any imports
-// Fixes ENETUNREACH on Render/cloud hosts that default to IPv6
-require('dns').setDefaultResultOrder('ipv4first');
-
 require('dotenv').config();
 
 const express = require('express');
