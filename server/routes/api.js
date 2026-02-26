@@ -107,9 +107,13 @@ router.post('/register', async (req, res) => {
     console.log(`New user registered: ${record.name} (${email}) – Batch: ${record.batch}`);
     res.json({ message: 'Registration successful', user });
   } catch (err) {
-    console.error('Registration Error:', err);
-    res.status(500).json({ message: 'Error registering user' });
+    console.error('Registration Error:', err.message, err);
+    res.status(500).json({
+      message: 'Error registering user',
+      detail: err.message || 'Unknown error'
+    });
   }
+
 });
 
 // Login Student (returns JWT)
