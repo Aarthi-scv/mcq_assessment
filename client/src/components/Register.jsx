@@ -2,28 +2,82 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import toast from "react-hot-toast";
-import { User, Mail, Layers, ShieldCheck } from "lucide-react";
+import { User, Mail, Layers, ShieldCheck, KeyRound, RefreshCw } from "lucide-react";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 const Register = () => {
+  const [step, setStep] = useState(1); // 1 = fill details, 2 = verify OTP
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     batch: "",
   });
+  const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
   const navigate = useNavigate();
 
-  const handleSubmit = async (e) => {
+  // ── Step 1: Send OTP ────────────────────────────────────────────────────────
+  const handleSendOtp = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      await axios.post(`${API_URL}/register`, formData);
-      toast.success("Registration Successful! Please login.");
+      await axios.post(`${API_URL}/send-otp`, formData);
+      toast.success("OTP sent! Please check your email.");
+      setStep(2);
+      startResendCooldown();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to send OTP");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ── Step 2: Verify OTP & Register ───────────────────────────────────────────
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    if (otp.length !== 6) {
+      return toast.error("Please enter the full 6-digit OTP");
+    }
+    setLoading(true);
+    try {
+      await axios.post(`${API_URL}/register`, {
+        email: formData.email,
+        otp,
+      });
+      toast.success("Registration successful! Please login.");
       navigate("/login");
     } catch (err) {
-      toast.error(err.response?.data?.message || "Registration failed");
+      toast.error(err.response?.data?.message || "Verification failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ── Resend OTP with cooldown ─────────────────────────────────────────────────
+  const startResendCooldown = () => {
+    setResendCooldown(60);
+    const interval = setInterval(() => {
+      setResendCooldown((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const handleResendOtp = async () => {
+    if (resendCooldown > 0) return;
+    setLoading(true);
+    try {
+      await axios.post(`${API_URL}/send-otp`, formData);
+      toast.success("New OTP sent! Please check your email.");
+      startResendCooldown();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to resend OTP");
     } finally {
       setLoading(false);
     }
@@ -32,6 +86,8 @@ const Register = () => {
   return (
     <div className="container flex items-center justify-center min-height-screen fade-in">
       <div className="card" style={{ maxWidth: "450px", width: "100%" }}>
+
+        {/* Header */}
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
             <div
@@ -41,78 +97,146 @@ const Register = () => {
                 borderRadius: "12px",
               }}
             >
-              <ShieldCheck size={32} className="text-primary" />
+              {step === 1
+                ? <ShieldCheck size={32} className="text-primary" />
+                : <KeyRound size={32} className="text-primary" />
+              }
             </div>
           </div>
-          <h2>Access Registration</h2>
-          <p className="text-secondary text-sm">
-            Initialize your candidate credentials
-          </p>
+          <h2 className="justify-center">
+            {step === 1 ? "Register your details" : "Verify your email"}
+          </h2>
+          {step === 2 && (
+            <p className="text-secondary text-sm mt-2">
+              A 6-digit OTP was sent to <strong>{formData.email}</strong>
+            </p>
+          )}
         </div>
 
-        <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label className="flex items-center gap-2">
-              <User size={16} /> Candidate Name
-            </label>
-            <input
-              type="text"
-              placeholder="Enter full name"
-              required
-              value={formData.name}
-              onChange={(e) =>
-                setFormData({ ...formData, name: e.target.value })
-              }
-            />
-          </div>
+        {/* ── STEP 1: Registration Form ── */}
+        {step === 1 && (
+          <form onSubmit={handleSendOtp}>
+            <div className="mb-4">
+              <label className="flex items-center gap-2">
+                <User size={16} /> Candidate Name
+              </label>
+              <input
+                type="text"
+                placeholder="Enter full name"
+                required
+                value={formData.name}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
+              />
+            </div>
 
-          <div className="mb-4">
-            <label className="flex items-center gap-2">
-              <Mail size={16} /> System Email
-            </label>
-            <input
-              type="email"
-              placeholder="candidate@nexgen.com"
-              required
-              value={formData.email}
-              onChange={(e) =>
-                setFormData({ ...formData, email: e.target.value })
-              }
-            />
-          </div>
+            <div className="mb-4">
+              <label className="flex items-center gap-2">
+                <Mail size={16} /> Email
+              </label>
+              <input
+                type="email"
+                placeholder="candidate@email.com"
+                required
+                value={formData.email}
+                onChange={(e) =>
+                  setFormData({ ...formData, email: e.target.value })
+                }
+              />
+            </div>
 
-          <div className="mb-6">
-            <label className="flex items-center gap-2">
-              <Layers size={16} /> Assigned Batch
-            </label>
-            <select
-              required
-              value={formData.batch}
-              onChange={(e) =>
-                setFormData({ ...formData, batch: e.target.value })
-              }
+            <div className="mb-6">
+              <label className="flex items-center gap-2">
+                <Layers size={16} /> Assigned Batch
+              </label>
+              <select
+                required
+                value={formData.batch}
+                onChange={(e) =>
+                  setFormData({ ...formData, batch: e.target.value })
+                }
+              >
+                <option value="" disabled>
+                  Select Batch Designation
+                </option>
+                <option value="DV-B8">DV-B8</option>
+                <option value="DV-B9">DV-B9</option>
+                <option value="DV-B10">DV-B10</option>
+                <option value="DV-B11">DV-B11</option>
+                <option value="DV-B12">DV-B12</option>
+                <option value="ES-B2">ES-B2</option>
+                <option value="ES-B3">ES-B3</option>
+              </select>
+            </div>
+
+            <button
+              type="submit"
+              className="btn btn-primary w-full"
+              disabled={loading}
             >
-              <option value="" disabled>
-                Select Batch Designation
-              </option>
-              <option value="DV-B5">DV-B5</option>
-              <option value="DV-B6">DV-B6</option>
-              <option value="ES-B3">ES-B3</option>
-              <option value="VL-B1">VL-B1</option>
-            </select>
-          </div>
+              {loading ? "Sending OTP..." : "Send OTP"}
+            </button>
+          </form>
+        )}
 
-          <button
-            type="submit"
-            className="btn btn-primary w-full"
-            disabled={loading}
-          >
-            {loading ? "Processing..." : "Register Credentials"}
-          </button>
-        </form>
+        {/* ── STEP 2: OTP Verification Form ── */}
+        {step === 2 && (
+          <form onSubmit={handleVerifyOtp}>
+            <div className="mb-6">
+              <label className="flex items-center gap-2">
+                <KeyRound size={16} /> Enter OTP
+              </label>
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="\d{6}"
+                maxLength={6}
+                placeholder="Enter 6-digit OTP"
+                required
+                value={otp}
+                onChange={(e) =>
+                  setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))
+                }
+                style={{ letterSpacing: "0.4em", fontSize: "1.4rem", textAlign: "center" }}
+                autoFocus
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="btn btn-primary w-full"
+              disabled={loading}
+            >
+              {loading ? "Verifying..." : "Verify & Register"}
+            </button>
+
+            {/* Resend + Go Back */}
+            <div className="flex items-center justify-between mt-4" style={{ gap: "0.75rem" }}>
+              <button
+                type="button"
+                className="btn btn-secondary text-sm"
+                style={{ flex: 1 }}
+                onClick={() => { setStep(1); setOtp(""); }}
+              >
+                ← Go Back
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary text-sm"
+                style={{ flex: 1 }}
+                onClick={handleResendOtp}
+                disabled={resendCooldown > 0 || loading}
+              >
+                <RefreshCw size={14} />
+                {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend OTP"}
+              </button>
+            </div>
+          </form>
+        )}
 
         <p className="text-center mt-6 text-sm text-secondary">
-          Already have access?{" "}
+          Already have an account?{" "}
           <Link
             to="/login"
             className="text-primary"

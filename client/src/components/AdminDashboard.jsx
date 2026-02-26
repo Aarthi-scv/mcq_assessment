@@ -4,6 +4,7 @@ import axios from "axios";
 import toast from "react-hot-toast";
 import {
   Plus,
+  PlusCircle,
   Search,
   Filter,
   Clock,
@@ -27,7 +28,7 @@ import {
 import "./AdminDashboard.css";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-const BATCH_OPTIONS = ["DV-B5", "DV-B6", "ES-B3", "VL-B1"];
+const BATCH_OPTIONS = ["DV-B8", "DV-B9", "DV-B10", "DV-B11", "DV-B12", "ES-B2", "ES-B3"];
 
 // Helper to get admin auth header
 const getAdminHeaders = () => {
@@ -151,6 +152,14 @@ const AdminDashboard = () => {
   const [viewModule, setViewModule] = useState(null);
   const [editingQuestion, setEditingQuestion] = useState(null);
   const [editForm, setEditForm] = useState({});
+
+  // Add Question to existing module
+  const [addingQuestion, setAddingQuestion] = useState(false);
+  const [newQForm, setNewQForm] = useState({
+    qn: "", questionType: "plain", optionType: "multiple",
+    optionA: "", optionB: "", optionC: "", optionD: "",
+    correctAnswer: "A", explanation: ""
+  });
 
   // Auth check on mount
   useEffect(() => {
@@ -345,6 +354,31 @@ const AdminDashboard = () => {
       if (updated) setViewModule(updated);
     } catch (err) {
       toast.error("Failed to delete question");
+    }
+  };
+
+  const addQuestionToModule = async () => {
+    if (!newQForm.qn) return toast.error("Question text is required");
+    if (newQForm.optionType !== "truefalse") {
+      if (!newQForm.optionA || !newQForm.optionB || !newQForm.optionC || !newQForm.optionD) {
+        return toast.error("Please fill all 4 options");
+      }
+    }
+    try {
+      await axios.post(
+        `${API_URL}/modules/${viewModule._id}/questions`,
+        newQForm,
+        getAdminHeaders()
+      );
+      toast.success("Question added!");
+      setAddingQuestion(false);
+      setNewQForm({ qn: "", questionType: "plain", optionType: "multiple", optionA: "", optionB: "", optionC: "", optionD: "", correctAnswer: "A", explanation: "" });
+      fetchModules();
+      const res = await axios.get(`${API_URL}/modules`, getAdminHeaders());
+      const updated = res.data.find(m => m._id === viewModule._id);
+      if (updated) setViewModule(updated);
+    } catch (err) {
+      toast.error("Failed to add question");
     }
   };
 
@@ -713,7 +747,7 @@ const AdminDashboard = () => {
                 </div>
               </div>
               <button
-                onClick={() => { setViewModule(null); setEditingQuestion(null); }}
+                onClick={() => { setViewModule(null); setEditingQuestion(null); setAddingQuestion(false); }}
                 className="text-secondary close-modal-btn"
               >
                 <X size={24} />
@@ -825,7 +859,16 @@ const AdminDashboard = () => {
                           </button>
                         </div>
                       </div>
-                      <p style={{ fontWeight: 600, marginBottom: "0.75rem" }}>{q.qn}</p>
+                      {q.questionType === "code" ? (
+                        <pre style={{
+                          fontFamily: "'Courier New', monospace", fontSize: "0.82rem",
+                          background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.07)",
+                          borderRadius: "8px", padding: "0.75rem", marginBottom: "0.75rem",
+                          whiteSpace: "pre-wrap", wordBreak: "break-word", color: "var(--text-primary)",
+                        }}>{q.qn}</pre>
+                      ) : (
+                        <p style={{ fontWeight: 600, marginBottom: "0.75rem" }}>{q.qn}</p>
+                      )}
                       <div className="grid gap-2" style={{ gridTemplateColumns: "1fr 1fr" }}>
                         {['A', 'B', 'C', 'D'].map((letter, i) => (
                           <div
@@ -860,6 +903,151 @@ const AdminDashboard = () => {
               {getModuleQuestions(viewModule).length === 0 && (
                 <p className="text-center text-secondary py-8">No questions in this module.</p>
               )}
+
+              {/* ── Add Question Panel ── */}
+              <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: "1rem", marginTop: "0.5rem" }}>
+                {!addingQuestion ? (
+                  <button
+                    className="btn btn-primary"
+                    style={{ width: "100%", padding: "0.55rem" }}
+                    onClick={() => setAddingQuestion(true)}
+                  >
+                    <PlusCircle size={16} /> Add Question
+                  </button>
+                ) : (
+                  <div style={{ background: "rgba(0,0,0,0.25)", borderRadius: "12px", padding: "1rem" }}>
+                    <p style={{ fontWeight: 700, fontSize: "0.9rem", marginBottom: "0.75rem" }}>New Question</p>
+
+                    {/* Type selectors */}
+                    <div className="flex gap-3" style={{ marginBottom: "0.75rem" }}>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ fontSize: "0.75rem" }}>Question Type</label>
+                        <select
+                          value={newQForm.questionType}
+                          onChange={(e) => setNewQForm({ ...newQForm, questionType: e.target.value })}
+                        >
+                          <option value="plain">📝 Plain Text</option>
+                          <option value="code">💻 Code Snippet</option>
+                        </select>
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ fontSize: "0.75rem" }}>Option Methodology</label>
+                        <select
+                          value={newQForm.optionType}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            const patch = { optionType: val };
+                            if (val === "truefalse") {
+                              patch.optionA = "True"; patch.optionB = "False";
+                              patch.optionC = ""; patch.optionD = "";
+                              patch.correctAnswer = "A";
+                            }
+                            setNewQForm({ ...newQForm, ...patch });
+                          }}
+                        >
+                          <option value="multiple">Multiple Choice (A/B/C/D)</option>
+                          <option value="single">Single Choice (A/B/C/D)</option>
+                          <option value="truefalse">True / False</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Question text */}
+                    {newQForm.questionType === "code" ? (
+                      <textarea
+                        placeholder="Paste code snippet here..."
+                        value={newQForm.qn}
+                        onChange={(e) => setNewQForm({ ...newQForm, qn: e.target.value })}
+                        rows={5}
+                        style={{
+                          width: "100%", marginBottom: "0.75rem",
+                          fontFamily: "'Courier New', monospace", fontSize: "0.82rem",
+                          background: "rgba(0,0,0,0.35)", border: "1px solid var(--border-color)",
+                          borderRadius: "8px", padding: "0.6rem 0.8rem", color: "var(--text-primary)",
+                          resize: "vertical", boxSizing: "border-box",
+                        }}
+                      />
+                    ) : (
+                      <input
+                        placeholder="Enter question text"
+                        value={newQForm.qn}
+                        onChange={(e) => setNewQForm({ ...newQForm, qn: e.target.value })}
+                        style={{ marginBottom: "0.75rem" }}
+                      />
+                    )}
+
+                    {/* Options */}
+                    {newQForm.optionType === "truefalse" ? (
+                      <div className="flex gap-3" style={{ marginBottom: "0.75rem" }}>
+                        {["A", "B"].map(opt => (
+                          <div key={opt} style={{
+                            display: "flex", alignItems: "center", gap: "0.5rem", flex: 1,
+                            padding: "0.4rem 0.6rem", borderRadius: "8px",
+                            border: `1px solid ${newQForm.correctAnswer === opt ? "rgba(56,189,248,0.5)" : "rgba(255,255,255,0.08)"}`,
+                            background: newQForm.correctAnswer === opt ? "rgba(56,189,248,0.08)" : "transparent",
+                            cursor: "pointer",
+                          }} onClick={() => setNewQForm({ ...newQForm, correctAnswer: opt })}>
+                            <input type="radio" readOnly checked={newQForm.correctAnswer === opt}
+                              style={{ accentColor: "var(--primary-color)", pointerEvents: "none" }} />
+                            <span style={{ fontWeight: 600 }}>{opt === "A" ? "True" : "False"}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem", marginBottom: "0.75rem" }}>
+                        {["A", "B", "C", "D"].map(opt => (
+                          <input key={opt} placeholder={`Option ${opt}`}
+                            value={newQForm[`option${opt}`]}
+                            onChange={(e) => setNewQForm({ ...newQForm, [`option${opt}`]: e.target.value })}
+                            style={{ margin: 0 }}
+                          />
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Correct answer + explanation row */}
+                    {newQForm.optionType !== "truefalse" && (
+                      <div className="flex gap-3" style={{ marginBottom: "0.75rem" }}>
+                        <div style={{ width: "140px" }}>
+                          <label style={{ fontSize: "0.75rem" }}>Correct Answer</label>
+                          <select value={newQForm.correctAnswer}
+                            onChange={(e) => setNewQForm({ ...newQForm, correctAnswer: e.target.value })}>
+                            <option value="A">A</option>
+                            <option value="B">B</option>
+                            <option value="C">C</option>
+                            <option value="D">D</option>
+                          </select>
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ fontSize: "0.75rem" }}>Explanation (optional)</label>
+                          <input value={newQForm.explanation}
+                            onChange={(e) => setNewQForm({ ...newQForm, explanation: e.target.value })}
+                            placeholder="Why is this correct?" />
+                        </div>
+                      </div>
+                    )}
+                    {newQForm.optionType === "truefalse" && (
+                      <div style={{ marginBottom: "0.75rem" }}>
+                        <label style={{ fontSize: "0.75rem" }}>Explanation (optional)</label>
+                        <input value={newQForm.explanation}
+                          onChange={(e) => setNewQForm({ ...newQForm, explanation: e.target.value })}
+                          placeholder="Why is this correct?" />
+                      </div>
+                    )}
+
+                    <div className="flex gap-2">
+                      <button className="btn btn-primary text-xs" style={{ padding: "0.45rem 0.9rem" }}
+                        onClick={addQuestionToModule}>
+                        <Save size={14} /> Save Question
+                      </button>
+                      <button className="btn btn-secondary text-xs" style={{ padding: "0.45rem 0.9rem" }}
+                        onClick={() => { setAddingQuestion(false); setNewQForm({ qn: "", questionType: "plain", optionType: "multiple", optionA: "", optionB: "", optionC: "", optionD: "", correctAnswer: "A", explanation: "" }); }}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

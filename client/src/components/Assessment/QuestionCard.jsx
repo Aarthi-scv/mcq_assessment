@@ -13,13 +13,40 @@ const QuestionCard = ({
   onClear,
   onToggleReview,
 }) => {
+  const isCode = question.questionType === "code";
+
   return (
     <div id={`q-${index}`} className="card question-card flex flex-col">
       <div className="flex flex-col gap-4 mb-6">
-        <h3 className="question-title">
+        <div>
           <span className="question-number">Question {index + 1}</span>
-          {question.questionText}
-        </h3>
+          {isCode ? (
+            /* Code-type question: full monospace block, no scroll */
+            <pre
+              style={{
+                fontFamily: "'Courier New', Courier, monospace",
+                fontSize: "0.88rem",
+                lineHeight: 1.7,
+                background: "rgba(0,0,0,0.35)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                borderRadius: "10px",
+                padding: "1rem",
+                marginTop: "0.6rem",
+                whiteSpace: "pre-wrap",      /* wrap long lines */
+                wordBreak: "break-word",
+                overflowX: "hidden",         /* no horizontal scroll */
+                color: "var(--text-primary)",
+              }}
+            >
+              {question.questionText}
+            </pre>
+          ) : (
+            <h3 className="question-title" style={{ marginTop: "0.4rem" }}>
+              {question.questionText}
+            </h3>
+          )}
+        </div>
+
         {question.questionImage && (
           <div className="question-image-container">
             <img

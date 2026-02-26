@@ -12,6 +12,8 @@ const User = require('../models/User');
 const Admin = require('../models/Admin');
 const { parseMCQ } = require('../utils/parser');
 const { authenticateCandidate, authenticateAdmin, JWT_SECRET } = require('../middleware/authMiddleware');
+const { setOtp, getOtp, deleteOtp } = require('../utils/otpStore');
+const { sendOtpEmail } = require('../utils/mailer');
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -28,19 +30,71 @@ const upload = multer({ storage });
 
 // --- AUTH / USERS ---
 
-// Register Student
-router.post('/register', async (req, res) => {
+// Step 1 – Send OTP to candidate email
+router.post('/send-otp', async (req, res) => {
   try {
     const { name, email, batch } = req.body;
 
-    // Simple check if user exists
-    let user = await User.findOne({ email });
-    if (user) {
-      return res.status(400).json({ message: 'User already exists' });
+    if (!name || !email || !batch) {
+      return res.status(400).json({ message: 'Name, email and batch are required' });
     }
 
-    user = new User({ name, email, batch });
+    // Check if user already exists
+    const existing = await User.findOne({ email: email.toLowerCase() });
+    if (existing) {
+      return res.status(400).json({ message: 'An account with this email already exists' });
+    }
+
+    // Generate 6-digit OTP
+    const otp = String(Math.floor(100000 + Math.random() * 900000));
+
+    // Store OTP along with registration data
+    setOtp(email, otp, { name, batch });
+
+    // Send OTP via email
+    await sendOtpEmail(email, name, otp);
+
+    console.log(`OTP sent to ${email} for registration`);
+    res.json({ message: 'OTP sent successfully. Please check your email.' });
+  } catch (err) {
+    console.error('Send OTP Error:', err);
+    res.status(500).json({ message: 'Failed to send OTP. Please check your email address and try again.' });
+  }
+});
+
+// Step 2 – Verify OTP and complete registration
+router.post('/register', async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+      return res.status(400).json({ message: 'Email and OTP are required' });
+    }
+
+    // Retrieve stored OTP record
+    const record = getOtp(email);
+    if (!record) {
+      return res.status(400).json({ message: 'OTP expired or not found. Please request a new OTP.' });
+    }
+
+    if (record.otp !== String(otp).trim()) {
+      return res.status(400).json({ message: 'Invalid OTP. Please try again.' });
+    }
+
+    // OTP is valid — create the user account
+    let user = await User.findOne({ email: email.toLowerCase() });
+    if (user) {
+      deleteOtp(email);
+      return res.status(400).json({ message: 'An account with this email already exists' });
+    }
+
+    user = new User({ name: record.name, email: email.toLowerCase(), batch: record.batch });
     await user.save();
+
+    // Clear the OTP record
+    deleteOtp(email);
+
+    console.log(`New user registered: ${record.name} (${email}) – Batch: ${record.batch}`);
     res.json({ message: 'Registration successful', user });
   } catch (err) {
     console.error('Registration Error:', err);
@@ -130,14 +184,25 @@ router.post('/modules/create', authenticateAdmin, async (req, res) => {
     }
 
     // Build quiz array from questions
-    const quizQuestions = questions.map((q, index) => ({
-      id: `q${index + 1}`,
-      qn: q.qn,
-      questionImage: null,
-      options: [q.optionA, q.optionB, q.optionC, q.optionD],
-      answer: q[`option${q.correctAnswer}`] || q.optionA,
-      explanation: q.explanation || ''
-    }));
+    const quizQuestions = questions.map((q, index) => {
+      const isTrueFalse = q.optionType === 'truefalse';
+      const opts = isTrueFalse
+        ? ['True', 'False']
+        : [q.optionA, q.optionB, q.optionC, q.optionD];
+      const answerValue = isTrueFalse
+        ? (q.correctAnswer === 'A' ? 'True' : 'False')
+        : (q[`option${q.correctAnswer}`] || q.optionA);
+      return {
+        id: `q${index + 1}`,
+        qn: q.qn,
+        questionType: q.questionType || 'plain',
+        optionType: q.optionType || 'multiple',
+        questionImage: null,
+        options: opts,
+        answer: answerValue,
+        explanation: q.explanation || ''
+      };
+    });
 
     const newModule = new AssessmentModule({
       topicName,
@@ -150,12 +215,14 @@ router.post('/modules/create', authenticateAdmin, async (req, res) => {
       },
       questions: quizQuestions.map(q => ({
         questionText: q.qn,
+        questionType: q.questionType,
+        optionType: q.optionType,
         questionImage: null,
         options: {
-          A: q.options[0],
-          B: q.options[1],
-          C: q.options[2],
-          D: q.options[3]
+          A: q.options[0] || '',
+          B: q.options[1] || '',
+          C: q.options[2] || '',
+          D: q.options[3] || ''
         },
         correctAnswer: ['A', 'B', 'C', 'D'][q.options.indexOf(q.answer)] || 'A',
         correctValue: q.answer,
@@ -326,24 +393,85 @@ router.delete('/modules/:id', authenticateAdmin, async (req, res) => {
   }
 });
 
-// Update a single question in a module
-router.put('/modules/:moduleId/questions/:questionId', authenticateAdmin, async (req, res) => {
+// Append a new question to an existing module
+router.post('/modules/:moduleId/questions', authenticateAdmin, async (req, res) => {
   try {
-    const { moduleId, questionId } = req.params;
-    const { qn, optionA, optionB, optionC, optionD, correctAnswer, explanation } = req.body;
+    const { moduleId } = req.params;
+    const { qn, optionA, optionB, optionC, optionD, correctAnswer, explanation, questionType, optionType } = req.body;
 
     const module = await AssessmentModule.findById(moduleId);
     if (!module) {
       return res.status(404).json({ message: 'Module not found' });
     }
 
+    const isTrueFalse = optionType === 'truefalse';
+    const opts = isTrueFalse ? ['True', 'False'] : [optionA, optionB, optionC, optionD];
+    const answerValue = isTrueFalse
+      ? (correctAnswer === 'A' ? 'True' : 'False')
+      : ({ A: optionA, B: optionB, C: optionC, D: optionD }[correctAnswer] || optionA);
+    const qIndex = (module.module?.quiz?.length || 0) + 1;
+
+    const newQuizQ = {
+      id: `q${qIndex}`,
+      qn,
+      questionType: questionType || 'plain',
+      optionType: optionType || 'multiple',
+      questionImage: null,
+      options: opts,
+      answer: answerValue,
+      explanation: explanation || ''
+    };
+
+    module.module.quiz.push(newQuizQ);
+    module.questions.push({
+      questionText: qn,
+      questionType: questionType || 'plain',
+      optionType: optionType || 'multiple',
+      questionImage: null,
+      options: {
+        A: opts[0] || '',
+        B: opts[1] || '',
+        C: opts[2] || '',
+        D: opts[3] || ''
+      },
+      correctAnswer: ['A', 'B', 'C', 'D'][opts.indexOf(answerValue)] || correctAnswer,
+      correctValue: answerValue,
+      explanation: explanation || ''
+    });
+
+    await module.save();
+    res.json({ message: 'Question added successfully', module });
+  } catch (err) {
+    console.error('Add question error:', err);
+    res.status(500).json({ message: 'Error adding question' });
+  }
+});
+
+// Update a single question in a module
+router.put('/modules/:moduleId/questions/:questionId', authenticateAdmin, async (req, res) => {
+  try {
+    const { moduleId, questionId } = req.params;
+    const { qn, optionA, optionB, optionC, optionD, correctAnswer, explanation, questionType, optionType } = req.body;
+
+    const module = await AssessmentModule.findById(moduleId);
+    if (!module) {
+      return res.status(404).json({ message: 'Module not found' });
+    }
+
+    const isTrueFalse = optionType === 'truefalse';
+    const opts = isTrueFalse ? ['True', 'False'] : [optionA, optionB, optionC, optionD];
+    const answerValue = isTrueFalse
+      ? (correctAnswer === 'A' ? 'True' : 'False')
+      : ({ A: optionA, B: optionB, C: optionC, D: optionD }[correctAnswer] || optionA);
+
     // Update in module.quiz
     const quizQuestion = module.module.quiz.id(questionId);
     if (quizQuestion) {
       quizQuestion.qn = qn;
-      quizQuestion.options = [optionA, optionB, optionC, optionD];
-      const answerMap = { A: optionA, B: optionB, C: optionC, D: optionD };
-      quizQuestion.answer = answerMap[correctAnswer] || optionA;
+      quizQuestion.questionType = questionType || quizQuestion.questionType;
+      quizQuestion.optionType = optionType || quizQuestion.optionType;
+      quizQuestion.options = opts;
+      quizQuestion.answer = answerValue;
       quizQuestion.explanation = explanation || '';
     }
 
@@ -351,9 +479,11 @@ router.put('/modules/:moduleId/questions/:questionId', authenticateAdmin, async 
     const oldQuestion = module.questions.id(questionId);
     if (oldQuestion) {
       oldQuestion.questionText = qn;
-      oldQuestion.options = { A: optionA, B: optionB, C: optionC, D: optionD };
-      oldQuestion.correctAnswer = correctAnswer;
-      oldQuestion.correctValue = { A: optionA, B: optionB, C: optionC, D: optionD }[correctAnswer];
+      oldQuestion.questionType = questionType || oldQuestion.questionType;
+      oldQuestion.optionType = optionType || oldQuestion.optionType;
+      oldQuestion.options = { A: opts[0] || '', B: opts[1] || '', C: opts[2] || '', D: opts[3] || '' };
+      oldQuestion.correctAnswer = ['A', 'B', 'C', 'D'][opts.indexOf(answerValue)] || correctAnswer;
+      oldQuestion.correctValue = answerValue;
       oldQuestion.explanation = explanation || '';
     }
 
@@ -466,12 +596,14 @@ router.get('/questions/:moduleId', async (req, res) => {
       questionsToReturn = module.module.quiz.map(q => ({
         _id: q._id,
         questionText: q.qn,
+        questionType: q.questionType || 'plain',
+        optionType: q.optionType || 'multiple',
         questionImage: q.questionImage,
         options: {
           A: q.options[0],
           B: q.options[1],
-          C: q.options[2],
-          D: q.options[3]
+          C: q.options[2] || null,
+          D: q.options[3] || null
         },
         correctAnswer: ['A', 'B', 'C', 'D'][q.options.indexOf(q.answer)] || 'A',
         correctValue: q.answer,

@@ -45,10 +45,7 @@ const Login = () => {
               <Terminal size={32} className="text-primary" />
             </div>
           </div>
-          <h2>System Login</h2>
-          <p className="text-secondary text-sm">
-            Synchronizing candidate environment
-          </p>
+          <h2 className="justify-center">Login your account</h2>
         </div>
 
         <form onSubmit={handleSubmit}>
@@ -73,7 +70,7 @@ const Login = () => {
             </label>
             <input
               type="email"
-              placeholder="candidate@nexgen.com"
+              placeholder="candidate@email.com"
               required
               value={formData.email}
               onChange={(e) =>
@@ -87,7 +84,7 @@ const Login = () => {
             className="btn btn-primary w-full"
             disabled={loading}
           >
-            {loading ? "Verifying..." : "Initialize Session"}
+            {loading ? "Verifying..." : "Login"}
           </button>
         </form>
 

@@ -2,10 +2,10 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import toast from "react-hot-toast";
-import { PlusCircle, Minus, ArrowLeft } from "lucide-react";
+import { PlusCircle, Minus, ArrowLeft, Code2 } from "lucide-react";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-const BATCH_OPTIONS = ["DV-B5", "DV-B6", "ES-B3", "VL-B1"];
+const BATCH_OPTIONS = ["DV-B8", "DV-B9", "DV-B10", "DV-B11", "DV-B12", "ES-B2", "ES-B3"];
 
 const getAdminHeaders = () => {
     const token = localStorage.getItem("adminToken");
@@ -14,6 +14,8 @@ const getAdminHeaders = () => {
 
 const emptyQuestion = () => ({
     qn: "",
+    questionType: "plain",   // "plain" | "code"
+    optionType: "multiple",  // "multiple" | "single" | "truefalse"
     optionA: "",
     optionB: "",
     optionC: "",
@@ -49,6 +51,14 @@ const CreateModule = () => {
     const updateQuestion = (index, field, value) => {
         const updated = [...formQuestions];
         updated[index][field] = value;
+        // When switching to truefalse, set options and reset correct answer
+        if (field === "optionType" && value === "truefalse") {
+            updated[index].optionA = "True";
+            updated[index].optionB = "False";
+            updated[index].optionC = "";
+            updated[index].optionD = "";
+            updated[index].correctAnswer = "A";
+        }
         setFormQuestions(updated);
     };
 
@@ -59,8 +69,11 @@ const CreateModule = () => {
 
         for (let i = 0; i < formQuestions.length; i++) {
             const q = formQuestions[i];
-            if (!q.qn || !q.optionA || !q.optionB || !q.optionC || !q.optionD) {
-                return toast.error(`Please fill all fields for Question ${i + 1}`);
+            if (!q.qn) return toast.error(`Question ${i + 1}: Question text is required`);
+            if (q.optionType !== "truefalse") {
+                if (!q.optionA || !q.optionB || !q.optionC || !q.optionD) {
+                    return toast.error(`Question ${i + 1}: Please fill all 4 options`);
+                }
             }
         }
 
@@ -84,6 +97,12 @@ const CreateModule = () => {
         } finally {
             setSubmitting(false);
         }
+    };
+
+    // Determine which option letters to show based on optionType
+    const getVisibleOptions = (optionType) => {
+        if (optionType === "truefalse") return ["A", "B"];
+        return ["A", "B", "C", "D"];
     };
 
     return (
@@ -167,95 +186,174 @@ const CreateModule = () => {
                 </div>
 
                 <div className="flex flex-col gap-3 mb-6">
-                    {formQuestions.map((q, index) => (
-                        <div
-                            key={index}
-                            className="card"
-                            style={{ padding: "1rem", background: "rgba(0,0,0,0.25)" }}
-                        >
-                            {/* Q Header */}
-                            <div className="flex justify-between items-center mb-3">
-                                <span className="text-primary" style={{ fontWeight: 700, fontSize: "0.9rem" }}>
-                                    Q{index + 1}
-                                </span>
-                                {formQuestions.length > 1 && (
-                                    <button
-                                        type="button"
-                                        onClick={() => removeQuestion(index)}
-                                        className="text-danger"
-                                        style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px", fontSize: "0.8rem" }}
-                                    >
-                                        <Minus size={14} /> Remove
-                                    </button>
-                                )}
-                            </div>
-
-                            {/* Question Text */}
-                            <input
-                                placeholder="Enter question text"
-                                value={q.qn}
-                                onChange={(e) => updateQuestion(index, "qn", e.target.value)}
-                                required
-                                style={{ marginBottom: "0.75rem" }}
-                            />
-
-                            {/* Options with inline radio */}
-                            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "0.75rem" }}>
-                                {["A", "B", "C", "D"].map((opt) => {
-                                    const field = `option${opt}`;
-                                    const isCorrect = q.correctAnswer === opt;
-                                    return (
-                                        <div
-                                            key={opt}
-                                            style={{
-                                                display: "flex",
-                                                alignItems: "center",
-                                                gap: "0.6rem",
-                                                padding: "0.35rem 0.6rem",
-                                                borderRadius: "8px",
-                                                border: `1px solid ${isCorrect ? "rgba(56,189,248,0.5)" : "transparent"}`,
-                                                background: isCorrect ? "rgba(56,189,248,0.08)" : "transparent",
-                                            }}
+                    {formQuestions.map((q, index) => {
+                        const visibleOpts = getVisibleOptions(q.optionType);
+                        const isTrueFalse = q.optionType === "truefalse";
+                        return (
+                            <div
+                                key={index}
+                                className="card"
+                                style={{ padding: "1rem", background: "rgba(0,0,0,0.25)" }}
+                            >
+                                {/* Q Header */}
+                                <div className="flex justify-between items-center mb-3">
+                                    <span className="text-primary" style={{ fontWeight: 700, fontSize: "0.9rem" }}>
+                                        Q{index + 1}
+                                    </span>
+                                    {formQuestions.length > 1 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => removeQuestion(index)}
+                                            className="text-danger"
+                                            style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px", fontSize: "0.8rem" }}
                                         >
-                                            <input
-                                                type="radio"
-                                                name={`correct-${index}`}
-                                                checked={isCorrect}
-                                                onChange={() => updateQuestion(index, "correctAnswer", opt)}
-                                                style={{ accentColor: "var(--primary-color)", width: "16px", height: "16px", cursor: "pointer", flexShrink: 0, margin: 0 }}
-                                                title="Mark as correct answer"
-                                            />
-                                            <span style={{
-                                                fontWeight: 700,
-                                                fontSize: "0.8rem",
-                                                color: isCorrect ? "var(--primary-color)" : "var(--text-secondary)",
-                                                width: "16px",
-                                                flexShrink: 0,
-                                            }}>{opt}</span>
-                                            <input
-                                                placeholder={`Option ${opt}`}
-                                                value={q[field]}
-                                                onChange={(e) => updateQuestion(index, field, e.target.value)}
-                                                required
-                                                style={{ margin: 0, flex: 1, background: "transparent", border: "none", borderBottom: "1px solid var(--border-color)", borderRadius: 0, padding: "0.2rem 0.3rem" }}
-                                            />
-                                        </div>
-                                    );
-                                })}
-                            </div>
+                                            <Minus size={14} /> Remove
+                                        </button>
+                                    )}
+                                </div>
 
-                            {/* Explanation */}
-                            <div>
-                                <label style={{ fontSize: "0.8rem" }}>Explanation (optional)</label>
-                                <input
-                                    placeholder="Why is this the correct answer?"
-                                    value={q.explanation}
-                                    onChange={(e) => updateQuestion(index, "explanation", e.target.value)}
-                                    style={{ margin: 0 }}
-                                />
+                                {/* Row: Question Type + Option Type */}
+                                <div className="flex gap-3 mb-3">
+                                    <div style={{ flex: 1 }}>
+                                        <label style={{ fontSize: "0.78rem", marginBottom: "4px", display: "block" }}>
+                                            Question Type
+                                        </label>
+                                        <select
+                                            value={q.questionType}
+                                            onChange={(e) => updateQuestion(index, "questionType", e.target.value)}
+                                        >
+                                            <option value="plain">📝 Plain Text</option>
+                                            <option value="code">💻 Code Snippet</option>
+                                        </select>
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                        <label style={{ fontSize: "0.78rem", marginBottom: "4px", display: "block" }}>
+                                            Option Methodology
+                                        </label>
+                                        <select
+                                            value={q.optionType}
+                                            onChange={(e) => updateQuestion(index, "optionType", e.target.value)}
+                                        >
+                                            <option value="multiple">Multiple Choice (A/B/C/D)</option>
+                                            <option value="single">Single Choice (A/B/C/D)</option>
+                                            <option value="truefalse">True / False</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {/* Question Text — input or textarea depending on type */}
+                                {q.questionType === "code" ? (
+                                    <div style={{ marginBottom: "0.75rem" }}>
+                                        <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
+                                            <Code2 size={13} style={{ color: "var(--primary-color)" }} />
+                                            <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>Paste your code below</span>
+                                        </div>
+                                        <textarea
+                                            placeholder="Paste code snippet here..."
+                                            value={q.qn}
+                                            onChange={(e) => updateQuestion(index, "qn", e.target.value)}
+                                            required
+                                            rows={6}
+                                            style={{
+                                                fontFamily: "'Courier New', Courier, monospace",
+                                                fontSize: "0.82rem",
+                                                lineHeight: 1.6,
+                                                resize: "vertical",
+                                                width: "100%",
+                                                background: "rgba(0,0,0,0.35)",
+                                                border: "1px solid var(--border-color)",
+                                                borderRadius: "8px",
+                                                padding: "0.6rem 0.8rem",
+                                                color: "var(--text-primary)",
+                                                boxSizing: "border-box",
+                                            }}
+                                        />
+                                    </div>
+                                ) : (
+                                    <input
+                                        placeholder="Enter question text"
+                                        value={q.qn}
+                                        onChange={(e) => updateQuestion(index, "qn", e.target.value)}
+                                        required
+                                        style={{ marginBottom: "0.75rem" }}
+                                    />
+                                )}
+
+                                {/* Options */}
+                                <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "0.75rem" }}>
+                                    {visibleOpts.map((opt) => {
+                                        const field = `option${opt}`;
+                                        const isCorrect = q.correctAnswer === opt;
+                                        const optLabel = isTrueFalse ? (opt === "A" ? "True" : "False") : opt;
+                                        return (
+                                            <div
+                                                key={opt}
+                                                style={{
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    gap: "0.6rem",
+                                                    padding: "0.35rem 0.6rem",
+                                                    borderRadius: "8px",
+                                                    border: `1px solid ${isCorrect ? "rgba(56,189,248,0.5)" : "transparent"}`,
+                                                    background: isCorrect ? "rgba(56,189,248,0.08)" : "transparent",
+                                                }}
+                                            >
+                                                <input
+                                                    type="radio"
+                                                    name={`correct-${index}`}
+                                                    checked={isCorrect}
+                                                    onChange={() => updateQuestion(index, "correctAnswer", opt)}
+                                                    style={{ accentColor: "var(--primary-color)", width: "16px", height: "16px", cursor: "pointer", flexShrink: 0, margin: 0 }}
+                                                    title="Mark as correct answer"
+                                                />
+                                                <span style={{
+                                                    fontWeight: 700,
+                                                    fontSize: "0.8rem",
+                                                    color: isCorrect ? "var(--primary-color)" : "var(--text-secondary)",
+                                                    width: "40px",
+                                                    flexShrink: 0,
+                                                }}>
+                                                    {optLabel}
+                                                </span>
+                                                {isTrueFalse ? (
+                                                    /* True/False: display static label, no editable input */
+                                                    <span style={{ fontSize: "0.85rem", color: "var(--text-primary)", flex: 1 }}>
+                                                        {optLabel}
+                                                    </span>
+                                                ) : (
+                                                    <input
+                                                        placeholder={`Option ${opt}`}
+                                                        value={q[field]}
+                                                        onChange={(e) => updateQuestion(index, field, e.target.value)}
+                                                        required
+                                                        style={{ margin: 0, flex: 1, background: "transparent", border: "none", borderBottom: "1px solid var(--border-color)", borderRadius: 0, padding: "0.2rem 0.3rem" }}
+                                                    />
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+
+                                {/* Correct Answer Summary for true/false */}
+                                {isTrueFalse && (
+                                    <p style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginBottom: "0.75rem" }}>
+                                        ☝ Click the radio button to mark the correct answer (True or False)
+                                    </p>
+                                )}
+
+                                {/* Explanation */}
+                                <div>
+                                    <label style={{ fontSize: "0.8rem" }}>Explanation (optional)</label>
+                                    <input
+                                        placeholder="Why is this the correct answer?"
+                                        value={q.explanation}
+                                        onChange={(e) => updateQuestion(index, "explanation", e.target.value)}
+                                        style={{ margin: 0 }}
+                                    />
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
 
                 {/* Footer Actions */}
