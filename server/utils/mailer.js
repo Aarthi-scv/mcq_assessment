@@ -1,10 +1,15 @@
 const nodemailer = require('nodemailer');
+const dns = require('dns');
+
+// ─── CRITICAL FIX FOR RENDER / CLOUD HOSTS ───────────────────────────────────
+// Render's servers resolve hostnames to IPv6 by default, but outbound
+// IPv6 connections are blocked (ENETUNREACH). This forces the Node.js DNS
+// resolver to always prefer IPv4 addresses for ALL lookups in this process.
+dns.setDefaultResultOrder('ipv4first');
+// ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Creates a nodemailer transporter.
- * Uses Gmail SMTP on port 587 (STARTTLS) — more reliable on cloud hosts
- * like Render, Railway, Heroku etc. where port 465 (SSL) is often blocked.
- *
+ * Creates a nodemailer transporter using Gmail SMTP (port 587 / STARTTLS).
  * Required env vars:
  *   MAIL_USER  – Gmail address  (e.g. yourapp@gmail.com)
  *   MAIL_PASS  – Gmail App Password  (16-char, spaces OK)
@@ -22,13 +27,11 @@ function createTransporter() {
   return nodemailer.createTransport({
     host: 'smtp.gmail.com',
     port: 587,
-    secure: false,        // false = STARTTLS
+    secure: false,    // STARTTLS
     requireTLS: true,
-    family: 4,            // ← Force IPv4 (Render blocks outbound IPv6)
+    family: 4,        // belt-and-suspenders IPv4 enforcement at socket level
     auth: { user, pass },
-    tls: {
-      rejectUnauthorized: false,
-    },
+    tls: { rejectUnauthorized: false },
     connectionTimeout: 10000,
     greetingTimeout: 10000,
     socketTimeout: 15000,
