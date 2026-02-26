@@ -14,6 +14,7 @@ const getAdminHeaders = () => {
 
 const emptyQuestion = () => ({
     qn: "",
+    codeSnippet: "",
     questionType: "plain",   // "plain" | "code"
     optionType: "multiple",  // "multiple" | "single" | "truefalse"
     optionA: "",
@@ -70,6 +71,9 @@ const CreateModule = () => {
         for (let i = 0; i < formQuestions.length; i++) {
             const q = formQuestions[i];
             if (!q.qn) return toast.error(`Question ${i + 1}: Question text is required`);
+            if (q.questionType === "code" && !q.codeSnippet) {
+                return toast.error(`Question ${i + 1}: Code snippet is required for code-type questions`);
+            }
             if (q.optionType !== "truefalse") {
                 if (!q.optionA || !q.optionB || !q.optionC || !q.optionD) {
                     return toast.error(`Question ${i + 1}: Please fill all 4 options`);
@@ -241,17 +245,28 @@ const CreateModule = () => {
                                     </div>
                                 </div>
 
-                                {/* Question Text — input or textarea depending on type */}
-                                {q.questionType === "code" ? (
+                                {/* Question Text — always shown */}
+                                <input
+                                    placeholder={q.questionType === "code"
+                                        ? "Enter the question (e.g. What is the output of this code?)"
+                                        : "Enter question text"}
+                                    value={q.qn}
+                                    onChange={(e) => updateQuestion(index, "qn", e.target.value)}
+                                    required
+                                    style={{ marginBottom: "0.75rem" }}
+                                />
+
+                                {/* Code Snippet — only shown when questionType is "code" */}
+                                {q.questionType === "code" && (
                                     <div style={{ marginBottom: "0.75rem" }}>
                                         <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
                                             <Code2 size={13} style={{ color: "var(--primary-color)" }} />
-                                            <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>Paste your code below</span>
+                                            <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>Code Snippet</span>
                                         </div>
                                         <textarea
-                                            placeholder="Paste code snippet here..."
-                                            value={q.qn}
-                                            onChange={(e) => updateQuestion(index, "qn", e.target.value)}
+                                            placeholder="Paste your code snippet here..."
+                                            value={q.codeSnippet}
+                                            onChange={(e) => updateQuestion(index, "codeSnippet", e.target.value)}
                                             required
                                             rows={6}
                                             style={{
@@ -264,19 +279,11 @@ const CreateModule = () => {
                                                 border: "1px solid var(--border-color)",
                                                 borderRadius: "8px",
                                                 padding: "0.6rem 0.8rem",
-                                                color: "var(--text-primary)",
+                                                color: "#7dd3fc",
                                                 boxSizing: "border-box",
                                             }}
                                         />
                                     </div>
-                                ) : (
-                                    <input
-                                        placeholder="Enter question text"
-                                        value={q.qn}
-                                        onChange={(e) => updateQuestion(index, "qn", e.target.value)}
-                                        required
-                                        style={{ marginBottom: "0.75rem" }}
-                                    />
                                 )}
 
                                 {/* Options */}

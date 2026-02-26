@@ -13,6 +13,7 @@ const assessmentModuleSchema = new mongoose.Schema({
     quiz: [{
       id: { type: String, required: true },
       qn: { type: String, required: true },
+      codeSnippet: { type: String, default: '' },
       questionType: { type: String, enum: ['plain', 'code'], default: 'plain' },
       optionType: { type: String, enum: ['multiple', 'single', 'truefalse'], default: 'multiple' },
       questionImage: { type: String, default: null },
@@ -24,6 +25,7 @@ const assessmentModuleSchema = new mongoose.Schema({
 
   questions: [{
     questionText: { type: String },
+    codeSnippet: { type: String, default: '' },
     questionType: { type: String, enum: ['plain', 'code'], default: 'plain' },
     optionType: { type: String, enum: ['multiple', 'single', 'truefalse'], default: 'multiple' },
     questionImage: { type: String },

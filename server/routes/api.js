@@ -209,6 +209,7 @@ router.post('/modules/create', authenticateAdmin, async (req, res) => {
       return {
         id: `q${index + 1}`,
         qn: q.qn,
+        codeSnippet: q.codeSnippet || '',
         questionType: q.questionType || 'plain',
         optionType: q.optionType || 'multiple',
         questionImage: null,
@@ -227,8 +228,9 @@ router.post('/modules/create', authenticateAdmin, async (req, res) => {
         labs: [],
         quiz: quizQuestions
       },
-      questions: quizQuestions.map(q => ({
+      questions: quizQuestions.map((q, i) => ({
         questionText: q.qn,
+        codeSnippet: q.codeSnippet || '',
         questionType: q.questionType,
         optionType: q.optionType,
         questionImage: null,
