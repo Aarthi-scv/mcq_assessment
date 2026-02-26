@@ -24,7 +24,13 @@ import {
   Eye,
   Save,
   LogOut,
+  FileSpreadsheet,
+  FileDown,
+  RefreshCw,
 } from "lucide-react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
 import "./AdminDashboard.css";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
@@ -194,6 +200,84 @@ const AdminDashboard = () => {
     localStorage.removeItem("adminUser");
     toast.success("Logged out successfully");
     navigate("/control-center");
+  };
+
+  // --- Export Helpers ---
+  const exportLabel = () => {
+    const now = new Date();
+    return `MCQ_Analytics_${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  };
+
+  const getTableRows = () =>
+    submissions.map((sub, i) => ([
+      `#${i + 1}`,
+      sub.userName,
+      sub.batch,
+      (sub.correct || 0) + (sub.wrong || 0),
+      sub.unattended || 0,
+      sub.correct || 0,
+      sub.wrong || 0,
+      `${sub.score} / ${sub.totalQuestions}`,
+      new Date(sub.submittedAt).toLocaleDateString(),
+    ]));
+
+  const HEADERS = ["#", "Candidate Name", "Batch", "Answered", "Unanswered", "Correct", "Negative", "Total Marks", "Date"];
+
+  const exportPDF = () => {
+    if (!submissions.length) return toast.error("No data to export");
+    const doc = new jsPDF({ orientation: "landscape" });
+    doc.setFontSize(14);
+    doc.text("Performance Analytics Report", 14, 15);
+    doc.setFontSize(9);
+    doc.text(`Exported on ${new Date().toLocaleString()}`, 14, 22);
+    autoTable(doc, {
+      head: [HEADERS],
+      body: getTableRows(),
+      startY: 27,
+      styles: { fontSize: 8, cellPadding: 3 },
+      headStyles: { fillColor: [0, 180, 200], textColor: 255, fontStyle: "bold" },
+      alternateRowStyles: { fillColor: [240, 250, 255] },
+    });
+    doc.save(`${exportLabel()}.pdf`);
+    toast.success("PDF exported!");
+  };
+
+  const exportExcel = () => {
+    if (!submissions.length) return toast.error("No data to export");
+    const ws = XLSX.utils.aoa_to_sheet([HEADERS, ...getTableRows()]);
+    ws["!cols"] = HEADERS.map((h, i) => ({ wch: [4, 22, 10, 10, 12, 10, 10, 14, 12][i] }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Analytics");
+    XLSX.writeFile(wb, `${exportLabel()}.xlsx`);
+    toast.success("Excel sheet exported!");
+  };
+
+  const exportDocs = () => {
+    if (!submissions.length) return toast.error("No data to export");
+    const rows = getTableRows();
+    const thStyle = `style="background:#00b4c8;color:#fff;padding:6px 10px;border:1px solid #ccc;text-align:left;"`;
+    const tdStyle = `style="padding:5px 10px;border:1px solid #ddd;"`;
+    const html = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office"
+            xmlns:w="urn:schemas-microsoft-com:office:word"
+            xmlns="http://www.w3.org/TR/REC-html40">
+      <head><meta charset="utf-8"><title>Performance Analytics</title></head>
+      <body>
+        <h2 style="font-family:Arial">Performance Analytics Report</h2>
+        <p style="font-family:Arial;font-size:11px">Exported: ${new Date().toLocaleString()}</p>
+        <table style="border-collapse:collapse;font-family:Arial;font-size:11px;width:100%">
+          <thead><tr>${HEADERS.map(h => `<th ${thStyle}>${h}</th>`).join("")}</tr></thead>
+          <tbody>${rows.map((row, ri) =>
+      `<tr style="background:${ri % 2 === 0 ? "#f9f9f9" : "#fff"}">${row.map(cell => `<td ${tdStyle}>${cell}</td>`).join("")}</tr>`
+    ).join("")}</tbody>
+        </table>
+      </body></html>`;
+    const blob = new Blob([html], { type: "application/msword;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `${exportLabel()}.doc`;
+    a.click(); URL.revokeObjectURL(url);
+    toast.success("Word document exported!");
   };
 
   // Fetch Modules & Submissions
@@ -645,16 +729,43 @@ const AdminDashboard = () => {
 
         {/* ===== PERFORMANCE ANALYTICS ===== */}
         <div className="mb-12">
-          <div className="flex justify-between items-center mb-6">
+          <div className="flex justify-between items-center mb-6" style={{ flexWrap: "wrap", gap: "0.75rem" }}>
             <h2 className="analytics-header-title">
               <Users size={24} className="text-primary" /> Performance Analytics
             </h2>
-            <button
-              className="btn btn-secondary btn-sm refresh-data-btn"
-              onClick={fetchSubmissions}
-            >
-              <Users size={16} /> Refresh Data
-            </button>
+            <div className="flex gap-2" style={{ flexWrap: "wrap" }}>
+              <button
+                className="btn btn-secondary btn-sm refresh-data-btn"
+                onClick={fetchSubmissions}
+                title="Refresh data"
+              >
+                <RefreshCw size={14} /> Refresh
+              </button>
+              <button
+                className="btn btn-sm"
+                onClick={exportPDF}
+                title="Export as PDF"
+                style={{ background: "rgba(239,68,68,0.12)", color: "#f87171", border: "1px solid rgba(239,68,68,0.25)", display: "flex", alignItems: "center", gap: "6px" }}
+              >
+                <FileDown size={14} /> PDF
+              </button>
+              <button
+                className="btn btn-sm"
+                onClick={exportExcel}
+                title="Export as Excel / Google Sheets"
+                style={{ background: "rgba(34,197,94,0.12)", color: "#4ade80", border: "1px solid rgba(34,197,94,0.25)", display: "flex", alignItems: "center", gap: "6px" }}
+              >
+                <FileSpreadsheet size={14} /> Sheets
+              </button>
+              <button
+                className="btn btn-sm"
+                onClick={exportDocs}
+                title="Export as Word Document"
+                style={{ background: "rgba(59,130,246,0.12)", color: "#60a5fa", border: "1px solid rgba(59,130,246,0.25)", display: "flex", alignItems: "center", gap: "6px" }}
+              >
+                <FileText size={14} /> Docs
+              </button>
+            </div>
           </div>
           <div className="card table-container" style={{ padding: 0 }}>
             <table>
