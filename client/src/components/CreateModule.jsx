@@ -288,28 +288,6 @@ const CreateModule = () => {
                                                 boxSizing: "border-box",
                                             }}
                                         />
-
-                                        {/* Live Highlighted Preview — only when there is content */}
-                                        {q.codeSnippet && (
-                                            <div style={{ marginTop: "0.5rem" }}>
-                                                <div
-                                                    style={{
-                                                        display: "flex",
-                                                        alignItems: "center",
-                                                        gap: "5px",
-                                                        marginBottom: "4px",
-                                                        fontSize: "0.7rem",
-                                                        color: "rgba(0,245,255,0.5)",
-                                                        letterSpacing: "0.05em",
-                                                        textTransform: "uppercase",
-                                                    }}
-                                                >
-                                                    <Eye size={11} />
-                                                    Live Preview
-                                                </div>
-                                                <CodeHighlighter code={q.codeSnippet} />
-                                            </div>
-                                        )}
                                     </div>
                                 )}
 

@@ -46,7 +46,7 @@ const AdminLogin = () => {
                             <Terminal size={32} style={{ color: "#ff4d4d" }} />
                         </div>
                     </div>
-                    <h2>Control Center</h2>
+                    <h2 className="justify-center">Control Center</h2>
                     <p className="text-secondary text-sm">
                         Restricted Access — Admin Authorization Required
                     </p>

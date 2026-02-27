@@ -612,9 +612,13 @@ const AdminDashboard = () => {
           </h2>
           <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))" }}>
             {loading ? (
-              <div className="card flex justify-center py-12">
-                <div className="animate-pulse text-secondary">
-                  Loading modules...
+              <div className="card" style={{ gridColumn: "1 / -1" }}>
+                <div className="admin-loader-wrap">
+                  <div className="admin-loader-ring" />
+                  <div className="admin-loader-dots">
+                    <span /><span /><span />
+                  </div>
+                  <div className="admin-loader-label">Loading Modules</div>
                 </div>
               </div>
             ) : (
@@ -670,9 +674,13 @@ const AdminDashboard = () => {
           </h2>
           <div className="flex flex-col gap-4">
             {loading ? (
-              <div className="card flex justify-center py-12">
-                <div className="animate-pulse text-secondary">
-                  Initializing Core Systems...
+              <div className="card">
+                <div className="admin-loader-wrap">
+                  <div className="admin-loader-ring" />
+                  <div className="admin-loader-dots">
+                    <span /><span /><span />
+                  </div>
+                  <div className="admin-loader-label">Initializing Core Systems</div>
                 </div>
               </div>
             ) : (
