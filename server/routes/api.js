@@ -970,9 +970,6 @@ router.post('/compile', async (req, res) => {
   }
 });
 
-// ─── CODING ASSESSMENT ────────────────────────────────────────────────────────
-const CodingModule = require('../models/CodingModule');
-const CodingSubmission = require('../models/CodingSubmission');
 
 // ── Admin: Create coding module ───────────────────────────────────────────────
 router.post('/coding-modules/create', authenticateAdmin, async (req, res) => {
