@@ -141,7 +141,7 @@ export default function CCompiler() {
                         <Code2 size={22} className="text-primary" />
                         <span>C<span className="cc-logo-accent">Lab</span></span>
                     </div>
-                    <span className="cc-badge">C (GCC 9.2.0)</span>
+                    <span className="cc-badge">C · GCC (Wandbox)</span>
                 </div>
 
                 <div className="cc-topbar-right">
@@ -297,9 +297,16 @@ export default function CCompiler() {
                                 if (r?.error) return <span className="cc-status-badge err">Error</span>;
                                 const m = statusMeta(r?.statusId);
                                 return (
-                                    <span className="cc-status-badge" style={{ background: `${m.color}22`, color: m.color, border: `1px solid ${m.color}44` }}>
-                                        {m.icon} {m.label}
-                                    </span>
+                                    <>
+                                        <span className="cc-status-badge" style={{ background: `${m.color}22`, color: m.color, border: `1px solid ${m.color}44` }}>
+                                            {m.icon} {m.label}
+                                        </span>
+                                        {r?.engine && (
+                                            <span style={{ marginLeft: "auto", fontSize: "0.65rem", opacity: 0.4, fontFamily: "monospace" }}>
+                                                via {r.engine}
+                                            </span>
+                                        )}
+                                    </>
                                 );
                             })()}
                         </div>

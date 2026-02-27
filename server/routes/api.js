@@ -806,8 +806,103 @@ router.get('/assessment-report/:submissionId', async (req, res) => {
 });
 
 
-// ─── C COMPILER (Piston API — free, no key required) ─────────────────────────
-// Publicly accessible at POST /api/compile  — no auth, no API key needed
+// ─── C COMPILER  ──────────────────────────────────────────────────────────────
+// Primary  : Wandbox  (https://wandbox.org)  — free, no key, GCC with stdin
+// Fallback : JDoodle (https://api.jdoodle.com) — free 200 calls/day, needs .env creds
+// No auth required on this route — publicly accessible at POST /api/compile
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── helper: call Wandbox ──────────────────────────────────────────────────────
+async function runOnWandbox(code, stdin) {
+  const resp = await fetch('https://wandbox.org/api/compile.json', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      compiler: 'gcc-head',   // latest GCC — always available on Wandbox
+      code,
+      stdin,
+      options: '',
+      'compiler-option-raw': '-Wall',
+    }),
+  });
+
+  if (!resp.ok) {
+    const txt = await resp.text();
+    throw new Error(`Wandbox ${resp.status}: ${txt}`);
+  }
+
+  const d = await resp.json();
+  // Wandbox response fields:
+  //   status (exit code string), signal, compiler_error, compiler_message,
+  //   program_output, program_error, program_message
+  const exitCode = parseInt(d.status ?? '0', 10);
+  const compileErr = (d.compiler_error || '').trim();
+  const programOut = (d.program_output || '').trim();
+  const programErr = (d.program_error || '').trim();
+
+  let status = 'Accepted';
+  let statusId = 3;
+  if (compileErr) { status = 'Compile Error'; statusId = 6; }
+  else if (exitCode !== 0 || d.signal) { status = d.signal ? `Signal: ${d.signal}` : 'Runtime Error'; statusId = 11; }
+
+  return {
+    stdout: programOut,
+    stderr: programErr,
+    compile_output: compileErr,
+    status,
+    statusId,
+    time: null,
+    memory: null,
+    engine: 'wandbox',
+  };
+}
+
+// ── helper: call JDoodle (fallback) ──────────────────────────────────────────
+async function runOnJDoodle(code, stdin) {
+  const clientId = process.env.JDOODLE_CLIENT_ID;
+  const clientSecret = process.env.JDOODLE_CLIENT_SECRET;
+
+  if (!clientId || !clientSecret ||
+    clientId === 'your_jdoodle_client_id' ||
+    clientSecret === 'your_jdoodle_client_secret') {
+    throw new Error('JDoodle credentials not configured in server/.env');
+  }
+
+  const resp = await fetch('https://api.jdoodle.com/v1/execute', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      clientId,
+      clientSecret,
+      script: code,
+      stdin,
+      language: 'c',
+      versionIndex: '5',   // GCC 9.1.0
+    }),
+  });
+
+  if (!resp.ok) {
+    const txt = await resp.text();
+    throw new Error(`JDoodle ${resp.status}: ${txt}`);
+  }
+
+  const d = await resp.json();
+  // JDoodle response: { output, statusCode, memory, cpuTime, isError }
+  const isErr = d.isError || d.statusCode !== 200;
+
+  return {
+    stdout: isErr ? '' : (d.output || ''),
+    stderr: isErr ? (d.output || '') : '',
+    compile_output: '',
+    status: isErr ? 'Runtime Error' : 'Accepted',
+    statusId: isErr ? 11 : 3,
+    time: d.cpuTime || null,
+    memory: d.memory || null,
+    engine: 'jdoodle',
+  };
+}
+
+// ── Main route ────────────────────────────────────────────────────────────────
 router.post('/compile', async (req, res) => {
   const { code, stdin = '' } = req.body;
 
@@ -815,59 +910,25 @@ router.post('/compile', async (req, res) => {
     return res.status(400).json({ error: 'Code is required' });
   }
 
+  // Try Wandbox first (no key needed)
   try {
-    const pistonRes = await fetch('https://emkc.org/api/v2/piston/execute', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        language: 'c',
-        version: '10.2.0',          // GCC 10.2.0 — stable on Piston
-        files: [{ name: 'main.c', content: code }],
-        stdin: stdin,
-      }),
+    const result = await runOnWandbox(code, stdin);
+    console.log(`[compile] Wandbox OK — status: ${result.status}`);
+    return res.json(result);
+  } catch (wandboxErr) {
+    console.warn('[compile] Wandbox failed:', wandboxErr.message, '— trying JDoodle fallback…');
+  }
+
+  // Fallback to JDoodle
+  try {
+    const result = await runOnJDoodle(code, stdin);
+    console.log(`[compile] JDoodle OK — status: ${result.status}`);
+    return res.json(result);
+  } catch (jdoodleErr) {
+    console.error('[compile] JDoodle also failed:', jdoodleErr.message);
+    return res.status(502).json({
+      error: `Compilation service unavailable. Wandbox: ${jdoodleErr.message}. Please try again in a moment.`,
     });
-
-    if (!pistonRes.ok) {
-      const txt = await pistonRes.text();
-      console.error('Piston error:', pistonRes.status, txt);
-      return res.status(502).json({ error: `Piston API error: ${pistonRes.status} — ${txt}` });
-    }
-
-    const data = await pistonRes.json();
-
-    // Piston response shape:
-    //  { language, version,
-    //    compile: { stdout, stderr, code, signal, output },   ← only present if compilation step exists
-    //    run:     { stdout, stderr, code, signal, output } }
-
-    const compile = data.compile || {};
-    const run = data.run || {};
-
-    // Determine a friendly status
-    let status = 'Accepted';
-    let statusId = 3;   // mirror Judge0 conventions used by the frontend
-
-    if (compile.code !== 0 && compile.stderr) {
-      status = 'Compile Error';
-      statusId = 6;
-    } else if (run.code !== 0 || run.signal) {
-      status = run.signal ? `Signal: ${run.signal}` : 'Runtime Error';
-      statusId = 11;
-    }
-
-    return res.json({
-      stdout: run.stdout || '',
-      stderr: run.stderr || '',
-      compile_output: compile.stderr || compile.stdout || '',
-      status,
-      statusId,
-      time: null,   // Piston doesn't expose timing
-      memory: null,
-    });
-
-  } catch (err) {
-    console.error('Compile route error:', err);
-    res.status(500).json({ error: err.message || 'Internal server error' });
   }
 });
 
