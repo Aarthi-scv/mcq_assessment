@@ -5,6 +5,7 @@ import { Terminal, ShieldCheck, Zap, Code2 } from "lucide-react";
 import AdminDashboard from "./components/AdminDashboard";
 import AdminLogin from "./components/AdminLogin";
 import CreateModule from "./components/CreateModule";
+import CreateCodingModule from "./components/CreateCodingModule";
 import InstructionPage from "./components/InstructionPage";
 import AssessmentPage from "./components/AssessmentPage";
 import AssessmentReport from "./components/AssessmentReport";
@@ -12,6 +13,7 @@ import Register from "./components/Register";
 import Login from "./components/Login";
 import CandidateDashboard from "./components/CandidateDashboard";
 import CCompiler from "./components/CCompiler";
+import CodingAssessment from "./components/CodingAssessment";
 import "./App.css";
 
 // Landing component
@@ -92,6 +94,8 @@ function App() {
         <Route path="/assessment" element={<AssessmentPage />} />
         <Route path="/assessment-report/:submissionId" element={<AssessmentReport />} />
         <Route path="/compiler" element={<CCompiler />} />
+        <Route path="/admin/create-coding-module" element={<CreateCodingModule />} />
+        <Route path="/coding-assessment" element={<CodingAssessment />} />
       </Routes>
     </Router>
   );

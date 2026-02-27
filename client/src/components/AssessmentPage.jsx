@@ -58,10 +58,8 @@ const AssessmentPage = () => {
     try { return new Set(JSON.parse(localStorage.getItem(LS_REVISIT)) || []); }
     catch { return new Set(); }
   });
-  const [timer, setTimer] = useState(() => {
-    const saved = parseInt(localStorage.getItem(LS_TIMER), 10);
-    return saved > 0 ? saved : 10 * 60;        // restore or default 10 min
-  });
+  const [timer, setTimer] = useState(null); // null = not yet known; set after fetch
+  const [timerReady, setTimerReady] = useState(false); // true once real value is set
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submissionResult, setSubmissionResult] = useState(null);
@@ -174,13 +172,18 @@ const AssessmentPage = () => {
         setQuestions(orderedQuestions);
 
         if (aRes.data && aRes.data.timer) {
-          // Only use server timer if NO saved timer exists
-          // (i.e. this is a fresh start, not a resume after refresh)
           const savedTimer = parseInt(localStorage.getItem(LS_TIMER), 10);
-          if (!savedTimer || savedTimer <= 0) {
-            setTimer(aRes.data.timer * 60);
+          // On a FRESH start (no localStorage timer) → always use server value
+          // On a REFRESH (savedTimer exists & belongs to same module) → restore it
+          const savedModuleId = localStorage.getItem(LS_MODULE_ID);
+          const isSameSession = savedTimer > 0 && savedModuleId === moduleId;
+          const resolvedTimer = isSameSession ? savedTimer : aRes.data.timer * 60;
+          setTimer(resolvedTimer);
+          if (!isSameSession) {
+            // Write the freshly resolved timer so the tick loop picks it up correctly
+            localStorage.setItem(LS_TIMER, resolvedTimer);
           }
-          // else: keep the already-restored timer from useState initialiser
+          setTimerReady(true);
         } else {
           toast.error("This assessment session is no longer active.");
           clearSession();
@@ -202,12 +205,13 @@ const AssessmentPage = () => {
   }, []);
 
   // ── 2. Timer Logic — tick every second & persist remaining time ────────────
+  // Only starts once `timerReady` is true (after server fetch confirms the real value)
   useEffect(() => {
-    if (submissionResult) return;
+    if (!timerReady || submissionResult) return;
 
     const interval = setInterval(() => {
       setTimer((prev) => {
-        const next = prev - 1;
+        const next = (prev ?? 0) - 1;
 
         // Persist remaining time every second
         localStorage.setItem(LS_TIMER, next);
@@ -236,7 +240,7 @@ const AssessmentPage = () => {
 
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [submissionResult]);
+  }, [timerReady, submissionResult]);
 
   // ── 3. Tab Switch Detection ────────────────────────────────────────────────
   useEffect(() => {

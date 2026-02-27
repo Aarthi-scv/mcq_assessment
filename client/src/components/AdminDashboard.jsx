@@ -16,6 +16,7 @@ import {
   FileText,
   Cpu,
   Layers,
+  Code2,
   X,
   CheckCircle2,
   AlertCircle,
@@ -154,6 +155,8 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterCourse, setFilterCourse] = useState("All");
+  const [codingModules, setCodingModules] = useState([]);
+  const [codingModLoading, setCodingModLoading] = useState(false);
 
   // Analytics Filters
   const [analyticsFilterBatch, setAnalyticsFilterBatch] = useState("");   // "" = not selected
@@ -191,6 +194,7 @@ const AdminDashboard = () => {
       .then(() => {
         fetchModules();
         fetchSubmissions();
+        fetchCodingModules();
       })
       .catch(() => {
         localStorage.removeItem("adminToken");
@@ -342,6 +346,34 @@ const AdminDashboard = () => {
     } catch (err) {
       console.error("Failed to fetch submissions", err);
     }
+  };
+
+  const fetchCodingModules = async () => {
+    setCodingModLoading(true);
+    try {
+      const res = await axios.get(`${API_URL}/coding-modules`, getAdminHeaders());
+      setCodingModules(res.data);
+    } catch (err) {
+      console.error("Failed to fetch coding modules", err);
+    } finally {
+      setCodingModLoading(false);
+    }
+  };
+
+  const updateCodingModule = async (id, patch) => {
+    try {
+      const res = await axios.patch(`${API_URL}/coding-modules/${id}`, patch, getAdminHeaders());
+      setCodingModules(prev => prev.map(m => m._id === id ? res.data : m));
+    } catch { toast.error("Failed to update coding module"); }
+  };
+
+  const deleteCodingModule = async (id, title) => {
+    if (!window.confirm(`Delete "${title}" and all its submissions?`)) return;
+    try {
+      await axios.delete(`${API_URL}/coding-modules/${id}`, getAdminHeaders());
+      setCodingModules(prev => prev.filter(m => m._id !== id));
+      toast.success("Coding module deleted");
+    } catch { toast.error("Failed to delete coding module"); }
   };
 
   // --- Question Form Handlers ---
@@ -663,6 +695,94 @@ const AdminDashboard = () => {
                 <AlertCircle size={48} className="mx-auto mb-4 opacity-20 alert-circle-icon" />
                 <p>No modules found. Click + to create one.</p>
               </div>
+            )}
+          </div>
+        </div>
+
+        {/* ===== CODING ASSESSMENT MODULES ===== */}
+        <div className="mb-12">
+          <div className="flex justify-between items-center mb-6" style={{ flexWrap: "wrap", gap: "0.5rem" }}>
+            <h2 style={{ margin: 0 }}>
+              <Code2 size={24} className="text-primary" /> Coding Assessment Modules
+            </h2>
+            <button
+              className="btn btn-primary"
+              style={{ padding: "0.45rem 1rem", fontSize: "0.85rem" }}
+              onClick={() => navigate("/admin/create-coding-module")}
+            >
+              <Plus size={15} /> New Coding Module
+            </button>
+          </div>
+          <div className="flex flex-col gap-4">
+            {codingModLoading ? (
+              <div className="card">
+                <div className="admin-loader-wrap">
+                  <div className="admin-loader-ring" />
+                  <div className="admin-loader-dots"><span /><span /><span /></div>
+                  <div className="admin-loader-label">Loading Coding Modules</div>
+                </div>
+              </div>
+            ) : codingModules.length === 0 ? (
+              <div className="card text-center py-12 text-secondary">
+                <Code2 size={48} className="mx-auto mb-4 opacity-20" style={{ display: "block", margin: "0 auto 1rem" }} />
+                <p>No coding modules yet. Click <strong>+ New Coding Module</strong> to create one.</p>
+              </div>
+            ) : (
+              codingModules.map((cm) => (
+                <div key={cm._id} className="card flex justify-between items-center gap-6" style={{ flexWrap: "wrap" }}>
+                  <div style={{ flex: 1 }}>
+                    <div className="flex items-center gap-3 mb-2">
+                      <Code2 size={16} className="text-primary" />
+                      <h3 className="module-title">{cm.title}</h3>
+                    </div>
+                    <div className="flex gap-2 items-center" style={{ flexWrap: "wrap" }}>
+                      <span className="badge badge-primary">{cm.questions.length} Q{cm.questions.length !== 1 ? "s" : ""}</span>
+                      <span className="badge">{cm.timer} min</span>
+                      {cm.assignedBatch.map(b => (
+                        <span key={b} className="badge batch-badge">{b}</span>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex gap-2 items-center" style={{ flexWrap: "wrap" }}>
+                    {/* Timer input */}
+                    <input
+                      type="number" min={5} max={180}
+                      className="input timer-input"
+                      defaultValue={cm.timer}
+                      onBlur={e => {
+                        const v = parseInt(e.target.value);
+                        if (v && v !== cm.timer) updateCodingModule(cm._id, { timer: v });
+                      }}
+                    />
+                    {/* Batch multi-select */}
+                    <div className="batch-selector-wrapper">
+                      <MultiSelect
+                        options={BATCH_OPTIONS}
+                        selected={cm.assignedBatch}
+                        onChange={val => updateCodingModule(cm._id, { assignedBatch: val })}
+                        placeholder="Assign Batch"
+                      />
+                    </div>
+                    {/* Activate/Deactivate */}
+                    <div className="status-toggle-wrapper flex">
+                      <button
+                        className={`btn status-btn ${cm.status === "active" ? "btn-danger" : "btn-primary"}`}
+                        onClick={() => updateCodingModule(cm._id, { status: cm.status === "active" ? "inactive" : "active" })}
+                      >
+                        {cm.status === "active" ? <><Square size={14} /> Stop</> : <><Play size={14} /> Activate</>}
+                      </button>
+                    </div>
+                    {/* Delete */}
+                    <button
+                      className="btn"
+                      style={{ background: "rgba(255,77,77,0.1)", color: "#ff4d4d", border: "1px solid rgba(255,77,77,0.2)", padding: "0.3rem 0.5rem" }}
+                      onClick={() => deleteCodingModule(cm._id, cm.title)}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+              ))
             )}
           </div>
         </div>

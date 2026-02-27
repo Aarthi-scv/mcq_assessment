@@ -12,6 +12,7 @@ import {
   CheckCircle,
   FileText,
   Radio,
+  Code2,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -20,6 +21,7 @@ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 const CandidateDashboard = () => {
   const [user, setUser] = useState(null);
   const [activeModule, setActiveModule] = useState(null);
+  const [activeCodingModule, setActiveCodingModule] = useState(null);
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isPolling, setIsPolling] = useState(false); // live indicator
@@ -41,6 +43,7 @@ const CandidateDashboard = () => {
 
     // Initial fetch
     fetchActiveAssessment(userData.batch);
+    fetchActiveCodingAssessment(userData.batch);
     fetchUserSubmissions(userData.name, token);
 
     // ── Auto-poll every 5 s for an active assessment ──────────────────────
@@ -94,6 +97,13 @@ const CandidateDashboard = () => {
       console.log("No active assessment for this batch.");
       setActiveModule(null);
     }
+  };
+
+  const fetchActiveCodingAssessment = async (batch) => {
+    try {
+      const res = await axios.get(`${API_URL}/active-coding-assessment/${batch}`);
+      if (res.data?._id) setActiveCodingModule(res.data);
+    } catch { /* none active */ }
   };
 
   const fetchUserSubmissions = async (userName, token) => {
@@ -210,6 +220,32 @@ const CandidateDashboard = () => {
             </div>
           </div>
         </div>
+
+        {/* Coding Assessment Card */}
+        {activeCodingModule && (
+          <div className="card" style={{ borderColor: "rgba(129,140,248,0.3)" }}>
+            <h3 className="mb-4 flex items-center gap-2">
+              <Code2 size={20} style={{ color: "#818cf8" }} /> Coding Assessment
+            </h3>
+            <div style={{ background: "rgba(129,140,248,0.06)", border: "1px solid rgba(129,140,248,0.2)", borderRadius: "12px", padding: "1.25rem" }}>
+              <h2 style={{ margin: "0 0 0.5rem", color: "#818cf8", fontSize: "1.05rem" }}>{activeCodingModule.title}</h2>
+              <div className="flex gap-2 mb-4">
+                <span className="badge">{activeCodingModule.questions.length} Questions</span>
+                <span className="badge"><Clock size={11} /> {activeCodingModule.timer} min</span>
+              </div>
+              <p className="text-secondary" style={{ fontSize: "0.85rem", marginBottom: "1rem" }}>
+                A coding assessment has been assigned to your batch. Each question has test cases. Run your code and submit.
+              </p>
+              <button
+                className="btn w-full"
+                style={{ background: "rgba(129,140,248,0.15)", color: "#818cf8", border: "1px solid rgba(129,140,248,0.3)" }}
+                onClick={() => navigate(`/coding-assessment?moduleId=${activeCodingModule._id}`)}
+              >
+                <Code2 size={16} /> Start Coding Assessment
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Assessment Card */}
         <div className="card">

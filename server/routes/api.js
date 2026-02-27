@@ -932,4 +932,138 @@ router.post('/compile', async (req, res) => {
   }
 });
 
+// ─── CODING ASSESSMENT ────────────────────────────────────────────────────────
+const CodingModule = require('../models/CodingModule');
+const CodingSubmission = require('../models/CodingSubmission');
+
+// ── Admin: Create coding module ───────────────────────────────────────────────
+router.post('/coding-modules/create', authenticateAdmin, async (req, res) => {
+  try {
+    const { title, assignedBatch, timer, questions } = req.body;
+    if (!title || !questions || questions.length === 0)
+      return res.status(400).json({ message: 'Title and at least one question are required' });
+
+    const mod = new CodingModule({ title, assignedBatch: assignedBatch || [], timer: timer || 60, questions });
+    await mod.save();
+    console.log('[coding] Module created:', mod._id);
+    res.json({ message: 'Coding module created', module: mod });
+  } catch (err) {
+    console.error('[coding] Create error:', err);
+    res.status(500).json({ message: 'Error creating coding module', error: err.message });
+  }
+});
+
+// ── Admin: Get all coding modules ─────────────────────────────────────────────
+router.get('/coding-modules', authenticateAdmin, async (req, res) => {
+  try {
+    const mods = await CodingModule.find().sort({ createdAt: -1 });
+    res.json(mods);
+  } catch (err) {
+    res.status(500).json({ message: 'Error fetching coding modules' });
+  }
+});
+
+// ── Admin: Update coding module (status / timer / batch) ─────────────────────
+router.patch('/coding-modules/:id', authenticateAdmin, async (req, res) => {
+  try {
+    const { status, timer, assignedBatch } = req.body;
+    const upd = {};
+    if (status) { upd.status = status; if (status === 'active') upd.activatedAt = new Date(); }
+    if (timer) { upd.timer = Number(timer); }
+    if (assignedBatch) { upd.assignedBatch = assignedBatch; }
+    const mod = await CodingModule.findByIdAndUpdate(req.params.id, upd, { new: true });
+    res.json(mod);
+  } catch (err) {
+    res.status(500).json({ message: 'Error updating coding module' });
+  }
+});
+
+// ── Admin: Delete coding module ───────────────────────────────────────────────
+router.delete('/coding-modules/:id', authenticateAdmin, async (req, res) => {
+  try {
+    await CodingModule.findByIdAndDelete(req.params.id);
+    await CodingSubmission.deleteMany({ moduleId: req.params.id });
+    res.json({ message: 'Coding module deleted' });
+  } catch (err) {
+    res.status(500).json({ message: 'Error deleting coding module' });
+  }
+});
+
+// ── Candidate: Get active coding module for their batch ───────────────────────
+router.get('/active-coding-assessment/:batch', async (req, res) => {
+  try {
+    const mod = await CodingModule.findOne({ status: 'active', assignedBatch: req.params.batch });
+    if (!mod) return res.status(404).json({ message: 'No active coding assessment for your batch' });
+    res.json(mod);
+  } catch (err) {
+    res.status(500).json({ message: 'Error fetching coding assessment' });
+  }
+});
+
+// ── Candidate: Run code against all test cases (parallel Wandbox calls) ───────
+router.post('/run-testcases', async (req, res) => {
+  const { code, testCases } = req.body;
+  if (!code || !Array.isArray(testCases) || testCases.length === 0)
+    return res.status(400).json({ error: 'code and testCases[] are required' });
+
+  // Helper: run one test case through Wandbox with JDoodle fallback
+  async function runOne(tc) {
+    const runCode = async (fn) => {
+      try { return await fn(code, tc.input || ''); } catch { return null; }
+    };
+    let out = await runCode(runOnWandbox) || await runCode(runOnJDoodle);
+    if (!out) return { ...tc, actualOutput: '', passed: false, score: 0, compileError: 'Compiler unavailable', runtimeError: '' };
+
+    const actual = (out.stdout || '').trim();
+    const expected = (tc.expectedOutput || '').trim();
+    const passed = actual === expected && !out.compile_output;
+    return {
+      input: tc.input,
+      expectedOutput: tc.expectedOutput,
+      actualOutput: out.stdout || '',
+      compileError: out.compile_output || '',
+      runtimeError: out.stderr || '',
+      passed,
+      score: passed ? 1 : 0,
+    };
+  }
+
+  try {
+    const results = await Promise.all(testCases.map(runOne));
+    res.json({ results, totalScore: results.reduce((s, r) => s + r.score, 0), maxScore: testCases.length });
+  } catch (err) {
+    console.error('[run-testcases] Error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Candidate: Submit coding assessment ───────────────────────────────────────
+router.post('/coding-submit', authenticateCandidate, async (req, res) => {
+  try {
+    const { userName, batch, moduleId, questions } = req.body;
+    if (!moduleId || !questions) return res.status(400).json({ message: 'moduleId and questions are required' });
+
+    const totalScore = questions.reduce((s, q) => s + (q.score || 0), 0);
+    const maxScore = questions.reduce((s, q) => s + (q.maxScore || 3), 0);
+
+    const sub = new CodingSubmission({ userName, batch, moduleId, totalScore, maxScore, questions });
+    await sub.save();
+    console.log(`[coding-submit] ${userName} — ${totalScore}/${maxScore}`);
+    res.json({ message: 'Submitted successfully', submissionId: sub._id, totalScore, maxScore });
+  } catch (err) {
+    console.error('[coding-submit] Error:', err);
+    res.status(500).json({ message: 'Error saving coding submission', error: err.message });
+  }
+});
+
+// ── Admin: Get all coding submissions ─────────────────────────────────────────
+router.get('/coding-submissions', authenticateAdmin, async (req, res) => {
+  try {
+    const subs = await CodingSubmission.find().sort({ submittedAt: -1 });
+    res.json(subs);
+  } catch (err) {
+    res.status(500).json({ message: 'Error fetching coding submissions' });
+  }
+});
+
 module.exports = router;

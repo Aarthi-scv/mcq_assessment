@@ -1,0 +1,372 @@
+/* ─── CreateCodingModule.css ─────────────────────────────────────────────── */
+
+.ccm-root {
+    min-height: 100vh;
+    background: var(--bg-primary, #0a0a14);
+    font-family: "Inter", sans-serif;
+    padding-bottom: 4rem;
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+.ccm-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.5rem;
+    background: rgba(255, 255, 255, 0.03);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    backdrop-filter: blur(8px);
+    flex-wrap: wrap;
+}
+
+.ccm-header-title {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex: 1;
+}
+
+.ccm-header-title h1 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0;
+    color: var(--text-primary, #e4e4e7);
+}
+
+/* ── Body ────────────────────────────────────────────────────────────────── */
+.ccm-body {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 1.5rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+}
+
+/* ── Meta card ───────────────────────────────────────────────────────────── */
+.ccm-meta-card {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.ccm-meta-row {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.ccm-meta-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.ccm-meta-field label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-secondary, #94a3b8);
+}
+
+.ccm-title-field {
+    flex: 1;
+}
+
+.ccm-timer-input {
+    width: 100px;
+}
+
+/* ── Batch ───────────────────────────────────────────────────────────────── */
+.ccm-batch-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.ccm-batch-section label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-secondary, #94a3b8);
+}
+
+.ccm-batch-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.ccm-batch-chip {
+    padding: 0.35rem 0.85rem;
+    border-radius: 99px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--text-secondary, #94a3b8);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+}
+
+.ccm-batch-chip:hover {
+    border-color: rgba(0, 245, 255, 0.3);
+    color: var(--primary-color, #00f5ff);
+}
+
+.ccm-batch-chip.active {
+    background: rgba(0, 245, 255, 0.12);
+    border-color: rgba(0, 245, 255, 0.35);
+    color: var(--primary-color, #00f5ff);
+    font-weight: 600;
+}
+
+/* ── Question card ───────────────────────────────────────────────────────── */
+.ccm-questions {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.ccm-question-card {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    border-left: 3px solid rgba(0, 245, 255, 0.25) !important;
+}
+
+.ccm-qn-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+
+.ccm-qn-number {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(0, 245, 255, 0.12);
+    border: 1px solid rgba(0, 245, 255, 0.25);
+    color: var(--primary-color, #00f5ff);
+    font-size: 0.8rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.ccm-qn-title-input {
+    flex: 1;
+}
+
+.ccm-qn-textarea {
+    width: 100%;
+    box-sizing: border-box;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    padding: 0.65rem 0.85rem;
+    color: var(--text-primary, #e4e4e7);
+    font-family: "Inter", sans-serif;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    resize: vertical;
+    transition: border-color 0.2s;
+}
+
+.ccm-qn-textarea:focus {
+    outline: none;
+    border-color: rgba(0, 245, 255, 0.3);
+}
+
+.ccm-remove-btn {
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    border-radius: 7px;
+    color: #ef4444;
+    padding: 0.4rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    margin-top: 2px;
+    transition: background 0.15s;
+}
+
+.ccm-remove-btn:hover {
+    background: rgba(239, 68, 68, 0.16);
+}
+
+/* ── Test cases section ──────────────────────────────────────────────────── */
+.ccm-tc-section {
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    padding-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.ccm-tc-section-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.73rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: rgba(0, 245, 255, 0.6);
+}
+
+.ccm-tc-hint {
+    font-size: 0.65rem;
+    color: var(--text-secondary, #94a3b8);
+    text-transform: none;
+    letter-spacing: normal;
+    margin-left: 4px;
+}
+
+.ccm-tc-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.ccm-tc-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    padding: 0.65rem;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.ccm-tc-label {
+    font-size: 0.7rem;
+    color: var(--text-secondary, #94a3b8);
+    padding-top: 1.5rem;
+    min-width: 40px;
+    text-align: center;
+}
+
+.ccm-tc-fields {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.6rem;
+}
+
+@media (max-width: 600px) {
+    .ccm-tc-fields {
+        grid-template-columns: 1fr;
+    }
+}
+
+.ccm-tc-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.ccm-tc-field label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-secondary, #94a3b8);
+}
+
+.ccm-tc-area {
+    width: 100%;
+    box-sizing: border-box;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 7px;
+    padding: 0.45rem 0.65rem;
+    color: #e4e4e7;
+    font-family: "JetBrains Mono", "Courier New", monospace;
+    font-size: 0.8rem;
+    line-height: 1.55;
+    resize: vertical;
+}
+
+.ccm-tc-area:focus {
+    outline: none;
+    border-color: rgba(0, 245, 255, 0.3);
+}
+
+.ccm-tc-remove {
+    background: rgba(239, 68, 68, 0.06);
+    border: 1px solid rgba(239, 68, 68, 0.15);
+    border-radius: 6px;
+    color: #ef4444;
+    padding: 0.3rem;
+    cursor: pointer;
+    margin-top: 1.5rem;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    transition: background 0.15s;
+}
+
+.ccm-tc-remove:hover {
+    background: rgba(239, 68, 68, 0.14);
+}
+
+/* ── Add buttons ─────────────────────────────────────────────────────────── */
+.ccm-add-tc-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0.4rem 0.9rem;
+    border-radius: 7px;
+    border: 1px dashed rgba(0, 245, 255, 0.25);
+    background: rgba(0, 245, 255, 0.04);
+    color: rgba(0, 245, 255, 0.6);
+    font-size: 0.78rem;
+    cursor: pointer;
+    width: fit-content;
+    transition: all 0.15s;
+    font-family: inherit;
+}
+
+.ccm-add-tc-btn:hover {
+    background: rgba(0, 245, 255, 0.1);
+    color: var(--primary-color, #00f5ff);
+}
+
+.ccm-add-qn-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 0.75rem;
+    border-radius: 10px;
+    border: 2px dashed rgba(0, 245, 255, 0.2);
+    background: rgba(0, 245, 255, 0.03);
+    color: rgba(0, 245, 255, 0.5);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+
+.ccm-add-qn-btn:hover {
+    background: rgba(0, 245, 255, 0.08);
+    border-color: rgba(0, 245, 255, 0.4);
+    color: var(--primary-color, #00f5ff);
+}

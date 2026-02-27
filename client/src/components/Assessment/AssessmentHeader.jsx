@@ -2,6 +2,14 @@ import React from "react";
 import { Cpu, User, Clock } from "lucide-react";
 
 const AssessmentHeader = ({ user, timer }) => {
+  // timer is null until server fetch completes
+  const displayTime =
+    timer === null
+      ? "--:--"
+      : `${Math.floor(timer / 60).toString().padStart(2, "0")}:${(timer % 60)
+        .toString()
+        .padStart(2, "0")}`;
+
   return (
     <header className="card sticky-header flex justify-between items-center">
       <div className="flex items-center gap-4">
@@ -20,7 +28,9 @@ const AssessmentHeader = ({ user, timer }) => {
           <Clock
             size={18}
             className={
-              timer < 120 ? "text-danger animate-pulse" : "text-primary"
+              timer !== null && timer < 120
+                ? "text-danger animate-pulse"
+                : "text-primary"
             }
           />
           <span
@@ -30,10 +40,7 @@ const AssessmentHeader = ({ user, timer }) => {
               fontWeight: "bold",
             }}
           >
-            {Math.floor(timer / 60)
-              .toString()
-              .padStart(2, "0")}
-            :{(timer % 60).toString().padStart(2, "0")}
+            {displayTime}
           </span>
         </div>
       </div>

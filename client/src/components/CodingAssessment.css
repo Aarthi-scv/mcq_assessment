@@ -1,0 +1,543 @@
+/* ─── CodingAssessment.css ────────────────────────────────────────────────── */
+
+.ca-root {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-primary, #0a0a14);
+    font-family: "Inter", sans-serif;
+    overflow: hidden;
+}
+
+/* Centred loading / result screens */
+.ca-centered {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-primary, #0a0a14);
+    text-align: center;
+    padding: 2rem;
+}
+
+/* ── Top bar ─────────────────────────────────────────────────────────────── */
+.ca-topbar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.5rem 1rem;
+    background: rgba(255, 255, 255, 0.03);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+
+.ca-topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 1;
+    min-width: 160px;
+}
+
+.ca-module-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text-primary, #e4e4e7);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ca-progress-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex: 1;
+    min-width: 140px;
+}
+
+.ca-progress-bar {
+    flex: 1;
+    height: 5px;
+    background: rgba(255, 255, 255, 0.07);
+    border-radius: 99px;
+    overflow: hidden;
+}
+
+.ca-progress-fill {
+    height: 100%;
+    border-radius: 99px;
+    background: linear-gradient(90deg, var(--primary-color, #00f5ff), #818cf8);
+    transition: width 0.4s ease;
+}
+
+.ca-progress-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary, #94a3b8);
+    white-space: nowrap;
+}
+
+.ca-timer {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-primary, #e4e4e7);
+    padding: 0.25rem 0.7rem;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.ca-timer.warn {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.2);
+    animation: timer-pulse 1s ease-in-out infinite;
+}
+
+@keyframes timer-pulse {
+
+    0%,
+    100% {
+        opacity: 1
+    }
+
+    50% {
+        opacity: 0.65
+    }
+}
+
+/* ── Stepper ─────────────────────────────────────────────────────────────── */
+.ca-stepper {
+    display: flex;
+    gap: 5px;
+    padding: 0.5rem 1rem;
+    background: rgba(0, 0, 0, 0.2);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    flex-shrink: 0;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+}
+
+.ca-step {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--text-secondary, #94a3b8);
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    flex-shrink: 0;
+    font-family: inherit;
+}
+
+.ca-step.active {
+    background: rgba(0, 245, 255, 0.15);
+    border-color: rgba(0, 245, 255, 0.4);
+    color: var(--primary-color, #00f5ff);
+    box-shadow: 0 0 10px rgba(0, 245, 255, 0.2);
+}
+
+.ca-step.done {
+    background: rgba(16, 185, 129, 0.1);
+    border-color: rgba(16, 185, 129, 0.3);
+    color: #10b981;
+}
+
+.ca-step.active.done {
+    background: rgba(0, 245, 255, 0.15);
+    border-color: rgba(0, 245, 255, 0.4);
+    color: var(--primary-color, #00f5ff);
+}
+
+/* ── Main layout ─────────────────────────────────────────────────────────── */
+.ca-layout {
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    flex: 1;
+    overflow: hidden;
+}
+
+@media (max-width: 900px) {
+    .ca-layout {
+        grid-template-columns: 1fr;
+        overflow: auto;
+        height: auto;
+    }
+}
+
+/* ── Left — Editor panel ─────────────────────────────────────────────────── */
+.ca-editor-panel {
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid rgba(255, 255, 255, 0.06);
+    overflow: hidden;
+}
+
+/* Question text */
+.ca-question-text {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    padding: 0.75rem 1rem;
+    background: rgba(0, 0, 0, 0.2);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    flex-shrink: 0;
+}
+
+.ca-qn-badge {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: rgba(0, 245, 255, 0.12);
+    border: 1px solid rgba(0, 245, 255, 0.25);
+    color: var(--primary-color, #00f5ff);
+    font-size: 0.75rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ca-question-text p {
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: var(--text-primary, #e4e4e7);
+}
+
+/* Editor header */
+.ca-editor-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.75rem;
+    background: rgba(255, 255, 255, 0.02);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    font-size: 0.75rem;
+    color: var(--text-secondary, #94a3b8);
+    font-family: "JetBrains Mono", monospace;
+    flex-shrink: 0;
+}
+
+.ca-editor-scroll {
+    display: flex;
+    flex: 1;
+    overflow: auto;
+    background: #0d0d1a;
+}
+
+.ca-line-nums {
+    padding: 0.65rem 0;
+    min-width: 42px;
+    text-align: right;
+    user-select: none;
+    background: rgba(0, 0, 0, 0.25);
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+    flex-shrink: 0;
+}
+
+.ca-line-num {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.78rem;
+    line-height: 1.7;
+    color: rgba(255, 255, 255, 0.2);
+    padding-right: 10px;
+}
+
+.ca-textarea {
+    flex: 1;
+    resize: none;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #e4e4e7;
+    font-family: "JetBrains Mono", "Fira Code", "Courier New", monospace;
+    font-size: 0.85rem;
+    line-height: 1.7;
+    padding: 0.65rem 1rem;
+    caret-color: var(--primary-color, #00f5ff);
+    tab-size: 4;
+    white-space: pre;
+}
+
+.ca-textarea::selection {
+    background: rgba(0, 245, 255, 0.15);
+}
+
+/* Run button strip */
+.ca-editor-footer {
+    padding: 0.65rem 0.75rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(0, 0, 0, 0.2);
+    flex-shrink: 0;
+}
+
+.ca-run-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 0.65rem;
+}
+
+/* ── Right — Test case panel ─────────────────────────────────────────────── */
+.ca-tc-panel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.ca-tc-panel-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.85rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    font-size: 0.78rem;
+    color: var(--text-secondary, #94a3b8);
+    min-height: 36px;
+    flex-shrink: 0;
+}
+
+.ca-tc-score {
+    margin-left: auto;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--primary-color, #00f5ff);
+    background: rgba(0, 245, 255, 0.1);
+    padding: 0.15rem 0.55rem;
+    border-radius: 99px;
+    border: 1px solid rgba(0, 245, 255, 0.2);
+}
+
+.ca-tc-scroll {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    padding: 0.65rem;
+}
+
+/* ── Test case card ──────────────────────────────────────────────────────── */
+.ca-tc-card {
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    background: rgba(255, 255, 255, 0.02);
+    overflow: hidden;
+}
+
+.ca-tc-card.pass {
+    border-color: rgba(16, 185, 129, 0.25);
+}
+
+.ca-tc-card.fail {
+    border-color: rgba(239, 68, 68, 0.2);
+}
+
+.ca-tc-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.4rem 0.65rem;
+    background: rgba(255, 255, 255, 0.03);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.ca-tc-num {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-primary, #e4e4e7);
+}
+
+.ca-tc-badge {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    padding: 0.15rem 0.5rem;
+    border-radius: 99px;
+}
+
+.ca-tc-badge.pass {
+    background: rgba(16, 185, 129, 0.12);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.ca-tc-badge.fail {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.ca-tc-badge.pending {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-secondary, #94a3b8);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.ca-tc-io {
+    padding: 0.5rem 0.65rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.ca-tc-io-row {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.ca-tc-io-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-secondary, #94a3b8);
+}
+
+.ca-tc-io-val {
+    margin: 0;
+    font-family: "JetBrains Mono", "Courier New", monospace;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 5px;
+    padding: 0.3rem 0.5rem;
+    color: #e4e4e7;
+}
+
+.ca-tc-io-val.ok {
+    color: #6ee7b7;
+    border-color: rgba(16, 185, 129, 0.15);
+    background: rgba(16, 185, 129, 0.05);
+}
+
+.ca-tc-io-val.err {
+    color: #fca5a5;
+    border-color: rgba(239, 68, 68, 0.15);
+    background: rgba(239, 68, 68, 0.05);
+}
+
+.ca-tc-error {
+    display: flex;
+    align-items: flex-start;
+    gap: 5px;
+    font-size: 0.72rem;
+    color: #f59e0b;
+    background: rgba(245, 158, 11, 0.07);
+    border: 1px solid rgba(245, 158, 11, 0.15);
+    border-radius: 5px;
+    padding: 0.3rem 0.5rem;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+/* ── Nav footer ─────────────────────────────────────────────────────────── */
+.ca-nav-footer {
+    padding: 0.65rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    flex-shrink: 0;
+}
+
+.ca-nav-btn,
+.ca-submit-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 0.65rem;
+}
+
+.ca-submit-btn {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(16, 185, 129, 0.1));
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    color: #10b981;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+}
+
+.ca-submit-btn:hover:not(:disabled) {
+    background: rgba(16, 185, 129, 0.2);
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.15);
+}
+
+.ca-submit-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ── Result card ─────────────────────────────────────────────────────────── */
+.ca-result-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 16px;
+    padding: 2.5rem;
+    text-align: center;
+    max-width: 400px;
+    width: 100%;
+}
+
+.ca-result-card h2 {
+    margin: 0 0 1rem;
+    font-size: 1.4rem;
+}
+
+.ca-score-display {
+    display: flex;
+    align-items: baseline;
+    gap: 0.25rem;
+    justify-content: center;
+    margin: 0.5rem 0;
+}
+
+.ca-score-num {
+    font-size: 3rem;
+    font-weight: 800;
+    color: var(--primary-color, #00f5ff);
+}
+
+.ca-score-sep {
+    font-size: 2rem;
+    color: var(--text-secondary, #94a3b8);
+}
+
+.ca-score-max {
+    font-size: 2rem;
+    color: var(--text-secondary, #94a3b8);
+}
+
+.ca-score-label {
+    font-size: 1rem;
+    color: var(--text-secondary, #94a3b8);
+    margin-left: 4px;
+}
+
+/* Spinner icon */
+.ca-spin {
+    animation: admin-spin 0.7s linear infinite;
+}
