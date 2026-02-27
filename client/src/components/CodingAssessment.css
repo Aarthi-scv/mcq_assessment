@@ -339,7 +339,7 @@
     border-radius: 8px;
     border: 1px solid rgba(255, 255, 255, 0.07);
     background: rgba(255, 255, 255, 0.02);
-    overflow: hidden;
+    /* overflow:hidden removed — allows "Your Output" row to expand after run */
 }
 
 .ca-tc-card.pass {
@@ -540,4 +540,109 @@
 /* Spinner icon */
 .ca-spin {
     animation: admin-spin 0.7s linear infinite;
+}
+
+/* ── Submit / Warning Modal ──────────────────────────────────────────────── */
+.ca-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.72);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    backdrop-filter: blur(4px);
+}
+
+.ca-modal {
+    background: #0f1729;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 2rem;
+    width: 100%;
+    max-width: 420px;
+    text-align: center;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+.ca-modal-warn-box {
+    border-color: rgba(245, 158, 11, 0.3);
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6), 0 0 40px rgba(245, 158, 11, 0.08);
+}
+
+.ca-modal-icon {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 1rem;
+    border-radius: 50%;
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ca-modal-icon.warn {
+    background: rgba(245, 158, 11, 0.1);
+    border-color: rgba(245, 158, 11, 0.25);
+}
+
+.ca-modal-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin: 0 0 0.75rem;
+    color: var(--text-primary, #e4e4e7);
+}
+
+.ca-modal-body {
+    font-size: 0.88rem;
+    line-height: 1.7;
+    color: var(--text-secondary, #94a3b8);
+    margin: 0 0 1.5rem;
+}
+
+.ca-modal-warn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: #f59e0b;
+    font-weight: 600;
+    background: rgba(245, 158, 11, 0.08);
+    border: 1px solid rgba(245, 158, 11, 0.2);
+    border-radius: 6px;
+    padding: 0.3rem 0.65rem;
+    font-size: 0.82rem;
+    margin-bottom: 0.5rem;
+}
+
+.ca-modal-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+}
+
+/* ── Tab-switch badge in topbar ──────────────────────────────────────────── */
+.ca-tab-warn-badge {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #f59e0b;
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.25);
+    padding: 0.2rem 0.6rem;
+    border-radius: 99px;
+    animation: timer-pulse 2s ease-in-out infinite;
+}
+
+/* ── Editor header hint label ────────────────────────────────────────────── */
+.ca-editor-hint {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.65rem;
+    color: rgba(239, 68, 68, 0.6);
+    letter-spacing: 0.03em;
 }

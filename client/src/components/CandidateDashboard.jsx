@@ -22,6 +22,7 @@ const CandidateDashboard = () => {
   const [user, setUser] = useState(null);
   const [activeModule, setActiveModule] = useState(null);
   const [activeCodingModule, setActiveCodingModule] = useState(null);
+  const [codingSubmissions, setCodingSubmissions] = useState([]);
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isPolling, setIsPolling] = useState(false); // live indicator
@@ -45,6 +46,7 @@ const CandidateDashboard = () => {
     fetchActiveAssessment(userData.batch);
     fetchActiveCodingAssessment(userData.batch);
     fetchUserSubmissions(userData.name, token);
+    fetchUserCodingSubmissions(userData.name, token);
 
     // ── Auto-poll every 5 s for an active assessment ──────────────────────
     setIsPolling(true);
@@ -104,6 +106,17 @@ const CandidateDashboard = () => {
       const res = await axios.get(`${API_URL}/active-coding-assessment/${batch}`);
       if (res.data?._id) setActiveCodingModule(res.data);
     } catch { /* none active */ }
+  };
+
+  const fetchUserCodingSubmissions = async (userName, token) => {
+    try {
+      const tkn = token || localStorage.getItem("candidateToken");
+      const res = await axios.get(
+        `${API_URL}/candidate-coding-submissions/${encodeURIComponent(userName)}`,
+        { headers: { Authorization: `Bearer ${tkn}` } }
+      );
+      setCodingSubmissions(res.data || []);
+    } catch { /* ignore */ }
   };
 
   const fetchUserSubmissions = async (userName, token) => {
@@ -222,30 +235,43 @@ const CandidateDashboard = () => {
         </div>
 
         {/* Coding Assessment Card */}
-        {activeCodingModule && (
-          <div className="card" style={{ borderColor: "rgba(129,140,248,0.3)" }}>
-            <h3 className="mb-4 flex items-center gap-2">
-              <Code2 size={20} style={{ color: "#818cf8" }} /> Coding Assessment
-            </h3>
-            <div style={{ background: "rgba(129,140,248,0.06)", border: "1px solid rgba(129,140,248,0.2)", borderRadius: "12px", padding: "1.25rem" }}>
-              <h2 style={{ margin: "0 0 0.5rem", color: "#818cf8", fontSize: "1.05rem" }}>{activeCodingModule.title}</h2>
-              <div className="flex gap-2 mb-4">
-                <span className="badge">{activeCodingModule.questions.length} Questions</span>
-                <span className="badge"><Clock size={11} /> {activeCodingModule.timer} min</span>
+        {activeCodingModule && (() => {
+          const alreadySubmitted = codingSubmissions.some(
+            s => s.moduleId?.toString() === activeCodingModule._id?.toString()
+          );
+          return (
+            <div className="card" style={{ borderColor: "rgba(129,140,248,0.3)" }}>
+              <h3 className="mb-4 flex items-center gap-2">
+                <Code2 size={20} style={{ color: "#818cf8" }} /> Coding Assessment
+              </h3>
+              <div style={{ background: "rgba(129,140,248,0.06)", border: "1px solid rgba(129,140,248,0.2)", borderRadius: "12px", padding: "1.25rem" }}>
+                <h2 style={{ margin: "0 0 0.5rem", color: "#818cf8", fontSize: "1.05rem" }}>{activeCodingModule.title}</h2>
+                <div className="flex gap-2 mb-4">
+                  <span className="badge">{activeCodingModule.questions.length} Questions</span>
+                  <span className="badge"><Clock size={11} /> {activeCodingModule.timer} min</span>
+                </div>
+                {alreadySubmitted ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.75rem", borderRadius: "8px", background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)", color: "#10b981", fontSize: "0.88rem", fontWeight: 600 }}>
+                    <CheckCircle size={16} /> You have already submitted this coding assessment.
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-secondary" style={{ fontSize: "0.85rem", marginBottom: "1rem" }}>
+                      A coding assessment has been assigned to your batch. Each question has test cases — run your code and submit.
+                    </p>
+                    <button
+                      className="btn w-full"
+                      style={{ background: "rgba(129,140,248,0.15)", color: "#818cf8", border: "1px solid rgba(129,140,248,0.3)" }}
+                      onClick={() => navigate(`/coding-assessment?moduleId=${activeCodingModule._id}`)}
+                    >
+                      <Code2 size={16} /> Start Coding Assessment
+                    </button>
+                  </>
+                )}
               </div>
-              <p className="text-secondary" style={{ fontSize: "0.85rem", marginBottom: "1rem" }}>
-                A coding assessment has been assigned to your batch. Each question has test cases. Run your code and submit.
-              </p>
-              <button
-                className="btn w-full"
-                style={{ background: "rgba(129,140,248,0.15)", color: "#818cf8", border: "1px solid rgba(129,140,248,0.3)" }}
-                onClick={() => navigate(`/coding-assessment?moduleId=${activeCodingModule._id}`)}
-              >
-                <Code2 size={16} /> Start Coding Assessment
-              </button>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Assessment Card */}
         <div className="card">

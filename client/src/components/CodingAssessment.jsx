@@ -4,13 +4,14 @@ import axios from "axios";
 import {
     Play, CheckCircle2, XCircle, AlertTriangle,
     Clock, Code2, Terminal, ChevronRight, Send,
-    FlaskConical, Loader2,
+    FlaskConical, Loader2, ShieldAlert, Eye,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import "./CodingAssessment.css";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 const LS_KEY = "codingAssessment_session";
+const MAX_TAB_SWITCHES = 3;   // auto-submit after this many violations
 
 // ── line number gutter ──────────────────────────────────────────────────────
 const LineNums = ({ code }) => {
@@ -26,6 +27,66 @@ const LineNums = ({ code }) => {
 
 const DEFAULT_CODE = `#include <stdio.h>\n\nint main() {\n    // Write your solution here\n    return 0;\n}\n`;
 
+// ── Submit Confirmation Modal ────────────────────────────────────────────────
+const SubmitModal = ({ unansweredCount, onConfirm, onCancel, submitting }) => (
+    <div className="ca-modal-overlay">
+        <div className="ca-modal fade-in">
+            <div className="ca-modal-icon">
+                <Send size={28} style={{ color: "#10b981" }} />
+            </div>
+            <h3 className="ca-modal-title">Submit Assessment?</h3>
+            {unansweredCount > 0 ? (
+                <p className="ca-modal-body">
+                    <span className="ca-modal-warn">
+                        <AlertTriangle size={14} /> {unansweredCount} question{unansweredCount > 1 ? "s" : ""} not yet run.
+                    </span>
+                    <br />
+                    Their scores will be recorded as <strong>0 pts</strong>. Are you sure you want to submit?
+                </p>
+            ) : (
+                <p className="ca-modal-body">
+                    All questions have been run. Submit your coding assessment now?
+                </p>
+            )}
+            <div className="ca-modal-actions">
+                <button className="btn btn-secondary" onClick={onCancel} disabled={submitting}>
+                    Go Back
+                </button>
+                <button className="btn ca-submit-btn" onClick={onConfirm} disabled={submitting} style={{ flex: 1 }}>
+                    {submitting
+                        ? <><Loader2 size={15} className="ca-spin" /> Submitting…</>
+                        : <><Send size={15} /> Confirm Submit</>
+                    }
+                </button>
+            </div>
+        </div>
+    </div>
+);
+
+// ── Tab-switch Warning Modal ─────────────────────────────────────────────────
+const TabWarningModal = ({ count, max, onClose }) => (
+    <div className="ca-modal-overlay">
+        <div className="ca-modal fade-in ca-modal-warn-box">
+            <div className="ca-modal-icon warn">
+                <ShieldAlert size={28} style={{ color: "#f59e0b" }} />
+            </div>
+            <h3 className="ca-modal-title">Tab Switch Detected!</h3>
+            <p className="ca-modal-body">
+                Switching tabs or windows during the assessment is <strong>not allowed</strong>.
+                <br /><br />
+                <span className="ca-modal-warn">
+                    Warning {count} of {max} — after {max} violations your assessment will be auto-submitted.
+                </span>
+            </p>
+            <div className="ca-modal-actions" style={{ justifyContent: "center" }}>
+                <button className="btn btn-primary" onClick={onClose}>
+                    <Eye size={14} /> I Understand — Resume
+                </button>
+            </div>
+        </div>
+    </div>
+);
+
 export default function CodingAssessment() {
     const navigate = useNavigate();
     const [params] = useSearchParams();
@@ -34,32 +95,41 @@ export default function CodingAssessment() {
     const [module, setModule] = useState(null);
     const [loading, setLoading] = useState(true);
     const [qIndex, setQIndex] = useState(0);
-    const [codes, setCodes] = useState([]);      // code per question
-    const [results, setResults] = useState([]);      // testCaseResults[] per question
+    const [codes, setCodes] = useState([]);
+    const [results, setResults] = useState([]);
     const [running, setRunning] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [timeLeft, setTimeLeft] = useState(null);
     const [submitted, setSubmitted] = useState(false);
     const [finalScore, setFinalScore] = useState(null);
+
+    // Modal states
+    const [showSubmitModal, setShowSubmitModal] = useState(false);
+    const [showTabWarning, setShowTabWarning] = useState(false);
+    const [tabSwitchCount, setTabSwitchCount] = useState(0);
+
     const textareaRef = useRef(null);
     const timerRef = useRef(null);
+    const tabCountRef = useRef(0);   // keep in sync with state for visibility handler
+    const moduleRef = useRef(null);
+    const submittingRef = useRef(false);
 
     const user = JSON.parse(localStorage.getItem("candidateUser") || "{}");
     const token = localStorage.getItem("candidateToken");
 
-    // ── Load module ─────────────────────────────────────────────────────────────
+    // ── Load module ──────────────────────────────────────────────────────────
     useEffect(() => {
         if (!moduleId) { navigate("/candidate-dashboard"); return; }
         if (!token) { navigate("/login"); return; }
 
         (async () => {
             try {
-                // Try restore session
                 const saved = localStorage.getItem(LS_KEY);
                 if (saved) {
                     const s = JSON.parse(saved);
                     if (s.moduleId === moduleId) {
                         setModule(s.module);
+                        moduleRef.current = s.module;
                         setCodes(s.codes);
                         setResults(s.results);
                         setQIndex(s.qIndex || 0);
@@ -68,9 +138,9 @@ export default function CodingAssessment() {
                         return;
                     }
                 }
-                // Fresh load
                 const res = await axios.get(`${API_URL}/active-coding-assessment/${user.batch}`);
                 const mod = res.data;
+                moduleRef.current = mod;
                 const initCodes = mod.questions.map(() => DEFAULT_CODE);
                 const initResults = mod.questions.map(q => ({ results: null, score: 0, maxScore: q.testCases.length }));
                 setModule(mod);
@@ -86,7 +156,11 @@ export default function CodingAssessment() {
         })();
     }, []);
 
-    // ── Timer ───────────────────────────────────────────────────────────────────
+    // ── Keep moduleRef in sync ───────────────────────────────────────────────
+    useEffect(() => { moduleRef.current = module; }, [module]);
+    useEffect(() => { submittingRef.current = submitting; }, [submitting]);
+
+    // ── Timer ────────────────────────────────────────────────────────────────
     useEffect(() => {
         if (timeLeft === null || submitted) return;
         if (timeLeft <= 0) { handleSubmit(true); return; }
@@ -94,14 +168,63 @@ export default function CodingAssessment() {
         return () => clearTimeout(timerRef.current);
     }, [timeLeft, submitted]);
 
-    // ── Persist session ─────────────────────────────────────────────────────────
+    // ── Persist session ──────────────────────────────────────────────────────
     useEffect(() => {
         if (!module) return;
         localStorage.setItem(LS_KEY, JSON.stringify({ moduleId, module, codes, results, qIndex, timeLeft }));
     }, [codes, results, qIndex, timeLeft]);
 
-    // ── Handle Tab in textarea ───────────────────────────────────────────────────
+    // ── Tab-switch detection ─────────────────────────────────────────────────
+    useEffect(() => {
+        const handleVisibility = () => {
+            if (document.visibilityState === "hidden") return; // only react on coming back
+            if (submitted || submittingRef.current) return;
+
+            tabCountRef.current += 1;
+            setTabSwitchCount(tabCountRef.current);
+
+            if (tabCountRef.current >= MAX_TAB_SWITCHES) {
+                // Auto-submit immediately
+                toast.error("Maximum tab switches reached — submitting automatically.", { duration: 4000 });
+                handleSubmit(true);
+            } else {
+                setShowTabWarning(true);
+            }
+        };
+
+        // Detect ANY tab/window switch
+        document.addEventListener("visibilitychange", handleVisibility);
+        window.addEventListener("blur", handleVisibility);
+
+        return () => {
+            document.removeEventListener("visibilitychange", handleVisibility);
+            window.removeEventListener("blur", handleVisibility);
+        };
+    }, [submitted]);
+
+    // ── Block copy/paste/cut in textarea ────────────────────────────────────
+    const blockClipboard = (e) => {
+        e.preventDefault();
+        toast("🔒 Copy / Paste is disabled in the code editor.", {
+            duration: 2000,
+            style: { background: "#1e293b", color: "#fff", border: "1px solid rgba(239,68,68,0.3)" },
+        });
+    };
+
+    // ── Handle Tab key in textarea ───────────────────────────────────────────
     const handleKeyDown = (e) => {
+        // Block Ctrl+C, Ctrl+V, Ctrl+X, Ctrl+A
+        if (e.ctrlKey && ["c", "v", "x", "a"].includes(e.key.toLowerCase())) {
+            // Allow Ctrl+A (select all is harmless), block copy/paste/cut
+            if (["c", "v", "x"].includes(e.key.toLowerCase())) {
+                e.preventDefault();
+                toast("🔒 Copy / Paste is disabled in the code editor.", {
+                    duration: 2000,
+                    style: { background: "#1e293b", color: "#fff", border: "1px solid rgba(239,68,68,0.3)" },
+                });
+                return;
+            }
+        }
         if (e.key !== "Tab") return;
         e.preventDefault();
         const ta = textareaRef.current;
@@ -115,7 +238,7 @@ export default function CodingAssessment() {
     const updateCode = (val) =>
         setCodes(prev => prev.map((c, i) => i === qIndex ? val : c));
 
-    // ── Run & Check ─────────────────────────────────────────────────────────────
+    // ── Run & Check ──────────────────────────────────────────────────────────
     const runAndCheck = useCallback(async () => {
         if (!module) return;
         const q = module.questions[qIndex];
@@ -136,22 +259,22 @@ export default function CodingAssessment() {
         }
     }, [module, qIndex, codes]);
 
-    // ── Navigate questions ───────────────────────────────────────────────────────
+    // ── Navigate questions ───────────────────────────────────────────────────
     const goNext = () => {
         if (qIndex < module.questions.length - 1) setQIndex(q => q + 1);
     };
 
-    // ── Final Submit ─────────────────────────────────────────────────────────────
+    // ── Show submit modal (replaces window.confirm) ──────────────────────────
+    const requestSubmit = () => setShowSubmitModal(true);
+
+    // ── Final Submit ─────────────────────────────────────────────────────────
     const handleSubmit = async (forced = false) => {
-        if (!forced) {
-            const unanswered = module.questions.filter((_, i) => !results[i]?.results);
-            if (unanswered.length > 0 && !window.confirm(
-                `${unanswered.length} question(s) not yet run. Submit anyway?`
-            )) return;
-        }
+        setShowSubmitModal(false);
         setSubmitting(true);
         try {
-            const questionPayload = module.questions.map((q, i) => ({
+            const mod = moduleRef.current || module;
+            if (!mod) return;
+            const questionPayload = mod.questions.map((q, i) => ({
                 questionId: q._id,
                 questionText: q.questionText,
                 code: codes[i] || "",
@@ -165,12 +288,7 @@ export default function CodingAssessment() {
 
             const { data } = await axios.post(
                 `${API_URL}/coding-submit`,
-                {
-                    userName: user.name,
-                    batch: user.batch,
-                    moduleId,
-                    questions: questionPayload,
-                },
+                { userName: user.name, batch: user.batch, moduleId, questions: questionPayload },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
             localStorage.removeItem(LS_KEY);
@@ -184,7 +302,7 @@ export default function CodingAssessment() {
         }
     };
 
-    // ── Helpers ──────────────────────────────────────────────────────────────────
+    // ── Helpers ──────────────────────────────────────────────────────────────
     const fmtTime = (s) => {
         if (s === null) return "--:--";
         const m = Math.floor(s / 60), sec = s % 60;
@@ -193,7 +311,12 @@ export default function CodingAssessment() {
 
     const pct = module ? ((qIndex) / module.questions.length) * 100 : 0;
 
-    // ── Render: Loading ──────────────────────────────────────────────────────────
+    // ── Compute unanswered for modal ─────────────────────────────────────────
+    const unansweredCount = module
+        ? module.questions.filter((_, i) => !results[i]?.results).length
+        : 0;
+
+    // ── Render: Loading ──────────────────────────────────────────────────────
     if (loading) return (
         <div className="ca-centered">
             <div className="admin-loader-ring" style={{ width: 48, height: 48 }} />
@@ -201,7 +324,7 @@ export default function CodingAssessment() {
         </div>
     );
 
-    // ── Render: Submitted ────────────────────────────────────────────────────────
+    // ── Render: Submitted ────────────────────────────────────────────────────
     if (submitted && finalScore) return (
         <div className="ca-centered">
             <div className="ca-result-card">
@@ -214,7 +337,7 @@ export default function CodingAssessment() {
                     <span className="ca-score-label">pts</span>
                 </div>
                 <p style={{ color: "var(--text-secondary)", marginTop: "0.5rem" }}>
-                    {((finalScore.total / finalScore.max) * 100).toFixed(0)}% score
+                    {finalScore.max > 0 ? ((finalScore.total / finalScore.max) * 100).toFixed(0) : 0}% score
                 </p>
                 <button className="btn btn-primary" style={{ marginTop: "1.5rem" }} onClick={() => navigate("/candidate-dashboard")}>
                     Back to Dashboard
@@ -230,15 +353,42 @@ export default function CodingAssessment() {
     const isLast = qIndex === module.questions.length - 1;
     const timeWarn = timeLeft !== null && timeLeft <= 300;
 
-    // ── Main Render ──────────────────────────────────────────────────────────────
+    // ── Main Render ──────────────────────────────────────────────────────────
     return (
         <div className="ca-root fade-in">
-            {/* ── Top bar ─────────────────────────────────────────────────────── */}
+            {/* ── Submit Confirmation Modal ──────────────────────────────── */}
+            {showSubmitModal && (
+                <SubmitModal
+                    unansweredCount={unansweredCount}
+                    onConfirm={() => handleSubmit(false)}
+                    onCancel={() => setShowSubmitModal(false)}
+                    submitting={submitting}
+                />
+            )}
+
+            {/* ── Tab-switch Warning Modal ───────────────────────────────── */}
+            {showTabWarning && (
+                <TabWarningModal
+                    count={tabSwitchCount}
+                    max={MAX_TAB_SWITCHES}
+                    onClose={() => setShowTabWarning(false)}
+                />
+            )}
+
+            {/* ── Top bar ─────────────────────────────────────────────────── */}
             <div className="ca-topbar">
                 <div className="ca-topbar-left">
                     <Code2 size={18} className="text-primary" />
                     <span className="ca-module-title">{module.title}</span>
                 </div>
+
+                {/* Tab switch indicator */}
+                {tabSwitchCount > 0 && (
+                    <div className="ca-tab-warn-badge">
+                        <ShieldAlert size={12} />
+                        {tabSwitchCount}/{MAX_TAB_SWITCHES} warnings
+                    </div>
+                )}
 
                 {/* Progress */}
                 <div className="ca-progress-wrap">
@@ -255,7 +405,7 @@ export default function CodingAssessment() {
                 </div>
             </div>
 
-            {/* ── Question stepper pills ─────────────────────────────────────── */}
+            {/* ── Question stepper pills ───────────────────────────────────── */}
             <div className="ca-stepper">
                 {module.questions.map((_, i) => {
                     const r = results[i];
@@ -267,16 +417,13 @@ export default function CodingAssessment() {
                             onClick={() => setQIndex(i)}
                             title={`Question ${i + 1}`}
                         >
-                            {hasResult
-                                ? <CheckCircle2 size={12} />
-                                : i + 1
-                            }
+                            {hasResult ? <CheckCircle2 size={12} /> : i + 1}
                         </button>
                     );
                 })}
             </div>
 
-            {/* ── Main layout: Editor + Test Cases ─────────────────────────── */}
+            {/* ── Main layout: Editor + Test Cases ────────────────────────── */}
             <div className="ca-layout">
                 {/* LEFT — Question + Code Editor */}
                 <div className="ca-editor-panel">
@@ -286,11 +433,16 @@ export default function CodingAssessment() {
                         <p>{q.questionText}</p>
                     </div>
 
-                    {/* Editor */}
+                    {/* Editor header */}
                     <div className="ca-editor-header">
                         <Terminal size={13} className="text-primary" />
                         <span>main.c</span>
+                        <span className="ca-editor-hint">
+                            <ShieldAlert size={11} /> Copy &amp; Paste disabled
+                        </span>
                     </div>
+
+                    {/* Editor body */}
                     <div className="ca-editor-scroll">
                         <LineNums code={codes[qIndex]} />
                         <textarea
@@ -299,6 +451,10 @@ export default function CodingAssessment() {
                             value={codes[qIndex]}
                             onChange={e => updateCode(e.target.value)}
                             onKeyDown={handleKeyDown}
+                            onCopy={blockClipboard}
+                            onPaste={blockClipboard}
+                            onCut={blockClipboard}
+                            onContextMenu={e => e.preventDefault()}  /* disable right-click menu */
                             spellCheck={false}
                             autoCapitalize="off"
                             autoCorrect="off"
@@ -347,7 +503,6 @@ export default function CodingAssessment() {
                                             {status === "pending" && <><Clock size={12} /> Not run</>}
                                         </span>
                                     </div>
-
                                     <div className="ca-tc-io">
                                         <div className="ca-tc-io-row">
                                             <span className="ca-tc-io-label">Input</span>
@@ -390,7 +545,7 @@ export default function CodingAssessment() {
                         ) : (
                             <button
                                 className="btn ca-submit-btn"
-                                onClick={() => handleSubmit(false)}
+                                onClick={requestSubmit}        /* ← opens modal now */
                                 disabled={submitting}
                             >
                                 {submitting

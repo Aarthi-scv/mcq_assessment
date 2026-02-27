@@ -8,6 +8,8 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const AssessmentModule = require('../models/AssessmentModule');
 const Submission = require('../models/Submission');
+const CodingSubmission = require('../models/CodingSubmission');
+const CodingModule = require('../models/CodingModule');
 const User = require('../models/User');
 const Admin = require('../models/Admin');
 const { parseMCQ } = require('../utils/parser');
@@ -648,6 +650,18 @@ router.post('/submit', authenticateCandidate, async (req, res) => {
       return res.status(400).json({ message: 'Module ID is required' });
     }
 
+    // ── Guard: prevent duplicate submission for same user+module ──────────
+    const existing = await Submission.findOne({ userName, moduleId });
+    if (existing) {
+      console.log(`[submit] Duplicate blocked: ${userName} already submitted module ${moduleId}`);
+      return res.json({
+        message: 'Already submitted',
+        result: { score: existing.score, correct: existing.correct, wrong: existing.wrong, unattended: existing.unattended },
+        submissionId: existing._id,
+        alreadySubmitted: true,
+      });
+    }
+
     const module = await AssessmentModule.findById(moduleId);
     if (!module) {
       return res.status(404).json({ message: 'Module not found' });
@@ -660,19 +674,15 @@ router.post('/submit', authenticateCandidate, async (req, res) => {
     const questionMap = {};
     if (module.questions) {
       module.questions.forEach(q => {
-        questionMap[q._id.toString()] = {
-          correctAnswer: q.correctAnswer,
-          ...q.toObject()
-        };
+        questionMap[q._id.toString()] = { correctAnswer: q.correctAnswer, ...q.toObject() };
       });
     }
     if (module.module && module.module.quiz) {
       module.module.quiz.forEach(q => {
-        const mappedQ = {
+        questionMap[q._id.toString()] = {
           correctAnswer: ['A', 'B', 'C', 'D'][q.options.indexOf(q.answer)] || 'A',
           ...q.toObject()
         };
-        questionMap[q._id.toString()] = mappedQ;
       });
     }
 
@@ -684,7 +694,6 @@ router.post('/submit', authenticateCandidate, async (req, res) => {
       if (q) {
         if (ans.selectedOption === q.correctAnswer) correct++;
         else if (ans.selectedOption) wrong++;
-
         processedAnswers.push({
           questionId: ans.questionId,
           selectedOption: ans.selectedOption,
@@ -727,11 +736,29 @@ router.get('/submissions', authenticateAdmin, async (req, res) => {
 router.get('/candidate-submissions/:userName', authenticateCandidate, async (req, res) => {
   try {
     const { userName } = req.params;
-    const subs = await Submission.find({ userName }).sort({ submittedAt: -1 });
-    res.json(subs);
+    // Deduplicate: return only the first submission per module for this candidate
+    const subs = await Submission.find({ userName }).sort({ submittedAt: 1 });
+    const seen = new Set();
+    const deduplicated = subs.filter(s => {
+      const key = s.moduleId?.toString();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    res.json(deduplicated.reverse()); // most recent first
   } catch (err) {
     console.error('Error fetching candidate submissions:', err);
     res.status(500).json({ message: 'Error' });
+  }
+});
+
+// Candidate: get their own coding submissions (to check if already submitted)
+router.get('/candidate-coding-submissions/:userName', authenticateCandidate, async (req, res) => {
+  try {
+    const subs = await CodingSubmission.find({ userName: req.params.userName }).sort({ submittedAt: -1 });
+    res.json(subs);
+  } catch (err) {
+    res.status(500).json({ message: 'Error fetching coding submissions' });
   }
 });
 
@@ -805,6 +832,17 @@ router.get('/assessment-report/:submissionId', async (req, res) => {
   }
 });
 
+// Get coding submission report by ID (for AssessmentReport component)
+router.get('/coding-report/:submissionId', async (req, res) => {
+  try {
+    const sub = await CodingSubmission.findById(req.params.submissionId);
+    if (!sub) return res.status(404).json({ message: 'Coding submission not found' });
+    res.json(sub);
+  } catch (err) {
+    console.error('Error fetching coding report:', err);
+    res.status(500).json({ message: 'Error fetching coding report' });
+  }
+});
 
 // ─── C COMPILER  ──────────────────────────────────────────────────────────────
 // Primary  : Wandbox  (https://wandbox.org)  — free, no key, GCC with stdin

@@ -195,6 +195,7 @@ const AdminDashboard = () => {
         fetchModules();
         fetchSubmissions();
         fetchCodingModules();
+        fetchCodingAnalytics();
       })
       .catch(() => {
         localStorage.removeItem("adminToken");
@@ -374,6 +375,15 @@ const AdminDashboard = () => {
       setCodingModules(prev => prev.filter(m => m._id !== id));
       toast.success("Coding module deleted");
     } catch { toast.error("Failed to delete coding module"); }
+  };
+
+  const fetchCodingAnalytics = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/coding-submissions`, getAdminHeaders());
+      setCodingAnalytics(res.data || []);
+    } catch (err) {
+      console.error("Failed to fetch coding analytics", err);
+    }
   };
 
   // --- Question Form Handlers ---
@@ -1088,7 +1098,84 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      {/* ===== VIEW/EDIT QUESTIONS MODAL ===== */}
+      {/* ===== CODING SUBMISSIONS ANALYTICS ===== */}
+      <div className="dashboard-section">
+        <div className="section-header mb-6">
+          <div className="flex justify-between items-center" style={{ flexWrap: "wrap", gap: "0.75rem" }}>
+            <div>
+              <h2><Code2 size={24} className="text-primary" /> Coding Assessment Analytics</h2>
+              <p className="text-secondary text-sm mt-1">C programming submission results per candidate</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <select
+                value={codingAnalyticsBatch}
+                onChange={e => setCodingAnalyticsBatch(e.target.value)}
+                className="course-filter-select"
+              >
+                <option value="">— All Batches —</option>
+                {BATCH_OPTIONS.map(b => <option key={b} value={b}>{b}</option>)}
+              </select>
+              {codingAnalyticsBatch && (
+                <button className="btn btn-secondary" style={{ padding: "0.3rem 0.75rem", fontSize: "0.75rem" }} onClick={() => setCodingAnalyticsBatch("")}>
+                  <X size={12} /> Clear
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="card table-container" style={{ padding: 0 }}>
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Candidate</th>
+                <th>Batch</th>
+                <th>Module</th>
+                <th>Score</th>
+                <th>Questions</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {codingAnalytics.length === 0 ? (
+                <tr><td colSpan="7" className="text-center py-10 text-secondary">No coding submissions yet.</td></tr>
+              ) : (
+                codingAnalytics
+                  .filter(s => !codingAnalyticsBatch || s.batch === codingAnalyticsBatch)
+                  .map((s, i) => {
+                    const mod = codingModules.find(m => m._id === s.moduleId?.toString() || m._id === s.moduleId);
+                    return (
+                      <tr key={s._id}>
+                        <td className="text-secondary">#{i + 1}</td>
+                        <td style={{ fontWeight: 600 }}>{s.userName}</td>
+                        <td className="text-sm">{s.batch}</td>
+                        <td className="text-sm">{mod?.title || s.moduleId || "—"}</td>
+                        <td>
+                          <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                            <div className="flex justify-between gap-3">
+                              <span className="text-secondary">Total:</span>
+                              <span className="text-primary font-bold">{s.totalScore ?? s.score ?? 0} / {s.maxScore ?? (s.questions?.length * 3) ?? 0}</span>
+                            </div>
+                            {s.questions?.map((q, qi) => (
+                              <div key={qi} className="flex justify-between gap-3 text-xs">
+                                <span className="text-secondary">Q{qi + 1}:</span>
+                                <span>{q.score ?? 0}/{q.maxScore ?? 3} pts</span>
+                              </div>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="text-sm">{s.questions?.length ?? 0} Qs</td>
+                        <td className="text-secondary">{new Date(s.submittedAt).toLocaleDateString()}</td>
+                      </tr>
+                    );
+                  })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       {viewModule && (
         <div className="modal-overlay no-scrollbar">
           <div className="modal-content fade-in no-scrollbar" style={{ maxWidth: "800px" }}>
