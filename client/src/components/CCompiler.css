@@ -1,0 +1,535 @@
+/* ─── CCompiler.css ─────────────────────────────────────────────────────────── */
+
+/* ── Root / Layout ─────────────────────────────────────────────────────── */
+.cc-root {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-primary, #0a0a14);
+    font-family: "Inter", sans-serif;
+}
+
+/* ── Top Bar ────────────────────────────────────────────────────────────── */
+.cc-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.65rem 1.25rem;
+    background: rgba(255, 255, 255, 0.03);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    gap: 1rem;
+    flex-wrap: wrap;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(8px);
+}
+
+.cc-topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+}
+
+.cc-logo {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 1.3rem;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    color: var(--text-primary, #e4e4e7);
+}
+
+.cc-logo-accent {
+    color: var(--primary-color, #00f5ff);
+}
+
+.cc-badge {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 99px;
+    background: rgba(0, 245, 255, 0.1);
+    color: rgba(0, 245, 255, 0.7);
+    border: 1px solid rgba(0, 245, 255, 0.2);
+    font-family: "JetBrains Mono", "Courier New", monospace;
+    letter-spacing: 0.04em;
+}
+
+.cc-topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+
+.cc-run-btn {
+    padding: 0.45rem 1.1rem;
+    font-size: 0.88rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.cc-runall-btn {
+    background: rgba(129, 140, 248, 0.12);
+    color: #818cf8;
+    border: 1px solid rgba(129, 140, 248, 0.25);
+    border-radius: 8px;
+    padding: 0.45rem 1.1rem;
+    font-size: 0.88rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: background 0.2s;
+    font-family: inherit;
+}
+
+.cc-runall-btn:hover:not(:disabled) {
+    background: rgba(129, 140, 248, 0.22);
+}
+
+.cc-runall-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* spinner inside buttons */
+.cc-spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-top-color: currentColor;
+    animation: admin-spin 0.7s linear infinite;
+    flex-shrink: 0;
+}
+
+/* Template dropdown */
+.cc-template-wrapper {
+    position: relative;
+}
+
+.cc-template-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    min-width: 150px;
+    background: rgba(15, 15, 30, 0.97);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    padding: 0.4rem;
+    z-index: 500;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
+.cc-template-menu button {
+    display: block;
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+    background: none;
+    border: none;
+    border-radius: 6px;
+    color: var(--text-primary, #e4e4e7);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: background 0.15s;
+    font-family: inherit;
+}
+
+.cc-template-menu button:hover {
+    background: rgba(0, 245, 255, 0.08);
+    color: var(--primary-color, #00f5ff);
+}
+
+/* ── Main Split Layout ──────────────────────────────────────────────────── */
+.cc-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    flex: 1;
+    min-height: 0;
+    height: calc(100vh - 55px);
+}
+
+@media (max-width: 900px) {
+    .cc-layout {
+        grid-template-columns: 1fr;
+        height: auto;
+    }
+}
+
+/* ── Panel Header ──────────────────────────────────────────────────────── */
+.cc-panel-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.85rem;
+    background: rgba(255, 255, 255, 0.025);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    font-size: 0.78rem;
+    color: var(--text-secondary, #94a3b8);
+    font-family: "JetBrains Mono", monospace;
+    min-height: 36px;
+    flex-shrink: 0;
+}
+
+/* ── Code Editor ────────────────────────────────────────────────────────── */
+.cc-editor-panel {
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid rgba(255, 255, 255, 0.06);
+    overflow: hidden;
+}
+
+.cc-editor-scroll {
+    display: flex;
+    flex: 1;
+    overflow: auto;
+    background: #0d0d1a;
+}
+
+.cc-line-nums {
+    padding: 0.75rem 0;
+    min-width: 44px;
+    text-align: right;
+    user-select: none;
+    background: rgba(0, 0, 0, 0.25);
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+    flex-shrink: 0;
+}
+
+.cc-line-num {
+    font-family: "JetBrains Mono", "Courier New", monospace;
+    font-size: 0.8rem;
+    line-height: 1.7;
+    color: rgba(255, 255, 255, 0.2);
+    padding-right: 10px;
+}
+
+.cc-textarea {
+    flex: 1;
+    resize: none;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #e4e4e7;
+    font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", "Courier New", monospace;
+    font-size: 0.85rem;
+    line-height: 1.7;
+    padding: 0.75rem 1rem;
+    caret-color: var(--primary-color, #00f5ff);
+    tab-size: 4;
+    white-space: pre;
+    word-break: normal;
+    overflow-wrap: normal;
+}
+
+.cc-textarea::selection {
+    background: rgba(0, 245, 255, 0.18);
+}
+
+/* ── Right Panel ────────────────────────────────────────────────────────── */
+.cc-right-panel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* ── Test Case Tabs ─────────────────────────────────────────────────────── */
+.cc-tc-tabs {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.cc-tab {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0.25rem 0.65rem;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--text-secondary, #94a3b8);
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    font-family: inherit;
+}
+
+.cc-tab.active {
+    background: rgba(0, 245, 255, 0.1);
+    color: var(--primary-color, #00f5ff);
+    border-color: rgba(0, 245, 255, 0.25);
+}
+
+.cc-tab:hover:not(.active) {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-primary, #e4e4e7);
+}
+
+.cc-tab-remove {
+    margin-left: 2px;
+    font-size: 0.85rem;
+    opacity: 0.4;
+    line-height: 1;
+}
+
+.cc-tab-remove:hover {
+    opacity: 1;
+    color: #ef4444;
+}
+
+.cc-tab-add {
+    background: rgba(0, 245, 255, 0.04);
+    border-style: dashed;
+    border-color: rgba(0, 245, 255, 0.2);
+    color: rgba(0, 245, 255, 0.5);
+}
+
+.cc-tab-add:hover {
+    background: rgba(0, 245, 255, 0.1);
+    color: var(--primary-color, #00f5ff);
+}
+
+/* ── Test Case Body ─────────────────────────────────────────────────────── */
+.cc-tc-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    padding: 0.75rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(0, 0, 0, 0.15);
+}
+
+.cc-io-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.cc-io-label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-secondary, #94a3b8);
+}
+
+.cc-io-hint {
+    font-size: 0.65rem;
+    opacity: 0.5;
+    text-transform: none;
+    letter-spacing: normal;
+    margin-left: 2px;
+}
+
+.cc-io-area {
+    width: 100%;
+    resize: vertical;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 8px;
+    padding: 0.5rem 0.75rem;
+    color: #e4e4e7;
+    font-family: "JetBrains Mono", "Courier New", monospace;
+    font-size: 0.82rem;
+    line-height: 1.6;
+    box-sizing: border-box;
+    transition: border-color 0.2s;
+}
+
+.cc-io-area:focus {
+    outline: none;
+    border-color: rgba(0, 245, 255, 0.3);
+}
+
+/* ── Output Panel ───────────────────────────────────────────────────────── */
+.cc-output-panel {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+}
+
+.cc-output-body {
+    flex: 1;
+    overflow: auto;
+    padding: 0.75rem;
+}
+
+.cc-output-idle {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    min-height: 100px;
+    color: var(--text-secondary, #94a3b8);
+    text-align: center;
+    font-size: 0.85rem;
+    gap: 0.5rem;
+}
+
+.cc-output-section {
+    margin-bottom: 0.75rem;
+}
+
+.cc-output-section-title {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    margin-bottom: 0.4rem;
+}
+
+.cc-output-section-title.ok {
+    color: #10b981;
+}
+
+.cc-output-section-title.err {
+    color: #ef4444;
+}
+
+.cc-output-section-title.warn {
+    color: #f59e0b;
+}
+
+.cc-output-pre {
+    font-family: "JetBrains Mono", "Courier New", monospace;
+    font-size: 0.82rem;
+    line-height: 1.65;
+    white-space: pre-wrap;
+    word-break: break-word;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+}
+
+.cc-output-pre.cc-ok {
+    background: rgba(16, 185, 129, 0.07);
+    color: #6ee7b7;
+    border: 1px solid rgba(16, 185, 129, 0.15);
+}
+
+.cc-output-pre.cc-err {
+    background: rgba(239, 68, 68, 0.07);
+    color: #fca5a5;
+    border: 1px solid rgba(239, 68, 68, 0.15);
+}
+
+.cc-output-pre.cc-warn {
+    background: rgba(245, 158, 11, 0.07);
+    color: #fcd34d;
+    border: 1px solid rgba(245, 158, 11, 0.15);
+}
+
+/* Verdict banner */
+.cc-verdict {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0.6rem 1rem;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    margin-top: 0.5rem;
+}
+
+.cc-verdict.pass {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.cc-verdict.fail {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+/* Meta row */
+.cc-meta-row {
+    display: flex;
+    gap: 1rem;
+    margin-top: 0.65rem;
+    font-size: 0.72rem;
+    color: var(--text-secondary, #94a3b8);
+}
+
+.cc-meta-row span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(255, 255, 255, 0.04);
+    padding: 0.25rem 0.6rem;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Status badge in output header */
+.cc-status-badge {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.68rem;
+    padding: 0.18rem 0.55rem;
+    border-radius: 99px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    margin-left: auto;
+}
+
+.cc-status-badge.err {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+/* ── All Results Summary Bar ────────────────────────────────────────────── */
+.cc-all-summary {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 0.6rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(0, 0, 0, 0.2);
+    max-height: 140px;
+    overflow-y: auto;
+}
+
+.cc-all-row {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 0.78rem;
+    padding: 0.35rem 0.65rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.cc-all-row:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.cc-all-row.pass {
+    color: #10b981;
+}
+
+.cc-all-row.fail {
+    color: #ef4444;
+}
+
+.cc-all-row.neutral {
+    color: var(--text-secondary, #94a3b8);
+}

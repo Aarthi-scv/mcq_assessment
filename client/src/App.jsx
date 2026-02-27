@@ -1,7 +1,7 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
-import { Terminal, ShieldCheck, Zap } from "lucide-react";
+import { Terminal, ShieldCheck, Zap, Code2 } from "lucide-react";
 import AdminDashboard from "./components/AdminDashboard";
 import AdminLogin from "./components/AdminLogin";
 import CreateModule from "./components/CreateModule";
@@ -11,6 +11,7 @@ import AssessmentReport from "./components/AssessmentReport";
 import Register from "./components/Register";
 import Login from "./components/Login";
 import CandidateDashboard from "./components/CandidateDashboard";
+import CCompiler from "./components/CCompiler";
 import "./App.css";
 
 // Landing component
@@ -30,6 +31,9 @@ const Home = () => (
       </Link>
       <Link to="/control-center" className="btn btn-secondary landing-btn">
         <Terminal size={20} /> Control Center
+      </Link>
+      <Link to="/compiler" className="btn btn-secondary landing-btn" style={{ background: "rgba(129,140,248,0.1)", borderColor: "rgba(129,140,248,0.25)", color: "#818cf8" }}>
+        <Code2 size={20} /> C Lab
       </Link>
     </div>
 
@@ -86,10 +90,8 @@ function App() {
         <Route path="/candidate-dashboard" element={<CandidateDashboard />} />
         <Route path="/instructions" element={<InstructionPage />} />
         <Route path="/assessment" element={<AssessmentPage />} />
-        <Route
-          path="/assessment-report/:submissionId"
-          element={<AssessmentReport />}
-        />
+        <Route path="/assessment-report/:submissionId" element={<AssessmentReport />} />
+        <Route path="/compiler" element={<CCompiler />} />
       </Routes>
     </Router>
   );

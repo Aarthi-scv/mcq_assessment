@@ -805,4 +805,70 @@ router.get('/assessment-report/:submissionId', async (req, res) => {
   }
 });
 
+
+// ─── C COMPILER (Piston API — free, no key required) ─────────────────────────
+// Publicly accessible at POST /api/compile  — no auth, no API key needed
+router.post('/compile', async (req, res) => {
+  const { code, stdin = '' } = req.body;
+
+  if (!code || !code.trim()) {
+    return res.status(400).json({ error: 'Code is required' });
+  }
+
+  try {
+    const pistonRes = await fetch('https://emkc.org/api/v2/piston/execute', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        language: 'c',
+        version: '10.2.0',          // GCC 10.2.0 — stable on Piston
+        files: [{ name: 'main.c', content: code }],
+        stdin: stdin,
+      }),
+    });
+
+    if (!pistonRes.ok) {
+      const txt = await pistonRes.text();
+      console.error('Piston error:', pistonRes.status, txt);
+      return res.status(502).json({ error: `Piston API error: ${pistonRes.status} — ${txt}` });
+    }
+
+    const data = await pistonRes.json();
+
+    // Piston response shape:
+    //  { language, version,
+    //    compile: { stdout, stderr, code, signal, output },   ← only present if compilation step exists
+    //    run:     { stdout, stderr, code, signal, output } }
+
+    const compile = data.compile || {};
+    const run = data.run || {};
+
+    // Determine a friendly status
+    let status = 'Accepted';
+    let statusId = 3;   // mirror Judge0 conventions used by the frontend
+
+    if (compile.code !== 0 && compile.stderr) {
+      status = 'Compile Error';
+      statusId = 6;
+    } else if (run.code !== 0 || run.signal) {
+      status = run.signal ? `Signal: ${run.signal}` : 'Runtime Error';
+      statusId = 11;
+    }
+
+    return res.json({
+      stdout: run.stdout || '',
+      stderr: run.stderr || '',
+      compile_output: compile.stderr || compile.stdout || '',
+      status,
+      statusId,
+      time: null,   // Piston doesn't expose timing
+      memory: null,
+    });
+
+  } catch (err) {
+    console.error('Compile route error:', err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
 module.exports = router;
