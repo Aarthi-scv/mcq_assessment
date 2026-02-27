@@ -10,6 +10,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import CodeHighlighter from "./Assessment/CodeHighlighter";
 import "./AssessmentReport.css";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
@@ -145,26 +146,9 @@ const AssessmentReport = () => {
                     <span className="q-number-report">Q{index + 1}.</span>
                     {item.questionText}
                   </h3>
-                  {/* Code block — only for code-type questions */}
+                  {/* Code block — syntax-highlighted */}
                   {item.questionType === "code" && item.codeSnippet && (
-                    <pre
-                      style={{
-                        fontFamily: "'Courier New', Courier, monospace",
-                        fontSize: "0.85rem",
-                        lineHeight: 1.7,
-                        background: "rgba(0,0,0,0.4)",
-                        border: "1px solid rgba(0,245,255,0.15)",
-                        borderRadius: "10px",
-                        padding: "1rem",
-                        marginTop: "0.75rem",
-                        whiteSpace: "pre-wrap",
-                        wordBreak: "break-word",
-                        overflowX: "hidden",
-                        color: "#7dd3fc",
-                      }}
-                    >
-                      {item.codeSnippet}
-                    </pre>
+                    <CodeHighlighter code={item.codeSnippet} />
                   )}
                 </div>
                 <div className="flex items-center gap-2" style={{ marginLeft: "1rem", flexShrink: 0 }}>

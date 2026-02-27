@@ -1,5 +1,6 @@
 import React from "react";
 import { RotateCcw, Bookmark, BookmarkCheck } from "lucide-react";
+import CodeHighlighter from "./CodeHighlighter";
 import "./QuestionCard.css";
 
 const UPLOADS_URL = import.meta.env.VITE_UPLOADS_URL || "http://localhost:5000/uploads";
@@ -26,26 +27,9 @@ const QuestionCard = ({
             {question.questionText}
           </h3>
 
-          {/* Code block — only shown for code-type questions */}
+          {/* Code block — syntax-highlighted for code-type questions */}
           {isCode && question.codeSnippet && (
-            <pre
-              style={{
-                fontFamily: "'Courier New', Courier, monospace",
-                fontSize: "0.88rem",
-                lineHeight: 1.7,
-                background: "rgba(0,0,0,0.4)",
-                border: "1px solid rgba(0,245,255,0.15)",
-                borderRadius: "10px",
-                padding: "1rem",
-                marginTop: "0.75rem",
-                whiteSpace: "pre-wrap",
-                wordBreak: "break-word",
-                overflowX: "hidden",
-                color: "#7dd3fc",
-              }}
-            >
-              {question.codeSnippet}
-            </pre>
+            <CodeHighlighter code={question.codeSnippet} />
           )}
         </div>
 

@@ -31,6 +31,7 @@ import {
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
+import CodeHighlighter from "./Assessment/CodeHighlighter";
 import "./AdminDashboard.css";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
@@ -154,6 +155,10 @@ const AdminDashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterCourse, setFilterCourse] = useState("All");
 
+  // Analytics Filters
+  const [analyticsFilterBatch, setAnalyticsFilterBatch] = useState("");   // "" = not selected
+  const [analyticsFilterTopic, setAnalyticsFilterTopic] = useState("");   // "" = not selected
+
   // View/Edit Questions Modal State
   const [viewModule, setViewModule] = useState(null);
   const [editingQuestion, setEditingQuestion] = useState(null);
@@ -202,38 +207,71 @@ const AdminDashboard = () => {
     navigate("/control-center");
   };
 
+  // --- Analytics Filter Logic ---
+  const filteredSubmissions = React.useMemo(() => {
+    // If neither filter is selected, return empty (don't show all)
+    if (!analyticsFilterBatch && !analyticsFilterTopic) return [];
+    return submissions.filter((sub) => {
+      const batchMatch = !analyticsFilterBatch || sub.batch === analyticsFilterBatch;
+      // Match topic by moduleId mapped to module topicName
+      const topicMatch = !analyticsFilterTopic ||
+        modules.find((m) => m._id === sub.moduleId)?.topicName === analyticsFilterTopic;
+      return batchMatch && topicMatch;
+    });
+  }, [submissions, analyticsFilterBatch, analyticsFilterTopic, modules]);
+
+  // Unique topic names derived from loaded modules (for the filter dropdown)
+  const topicOptions = React.useMemo(
+    () => [...new Set(modules.map((m) => m.topicName))].sort(),
+    [modules]
+  );
+
   // --- Export Helpers ---
   const exportLabel = () => {
     const now = new Date();
-    return `MCQ_Analytics_${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const parts = ["MCQ_Analytics"];
+    if (analyticsFilterBatch) parts.push(analyticsFilterBatch);
+    if (analyticsFilterTopic) parts.push(analyticsFilterTopic.replace(/\s+/g, "_"));
+    parts.push(date);
+    return parts.join("_");
   };
 
+  const filterSubtitle = () => {
+    const parts = [];
+    if (analyticsFilterBatch) parts.push(`Batch: ${analyticsFilterBatch}`);
+    if (analyticsFilterTopic) parts.push(`Topic: ${analyticsFilterTopic}`);
+    return parts.length ? parts.join("  |  ") : "All Submissions";
+  };
+
+  const HEADERS = ["#", "Candidate Name", "Batch", "Topic", "Answered", "Unanswered", "Correct", "Negative", "Total Marks", "Date"];
+
   const getTableRows = () =>
-    submissions.map((sub, i) => ([
+    filteredSubmissions.map((sub, i) => [
       `#${i + 1}`,
       sub.userName,
       sub.batch,
+      modules.find((m) => m._id === sub.moduleId)?.topicName || sub.moduleId || "—",
       (sub.correct || 0) + (sub.wrong || 0),
       sub.unattended || 0,
       sub.correct || 0,
       sub.wrong || 0,
       `${sub.score} / ${sub.totalQuestions}`,
       new Date(sub.submittedAt).toLocaleDateString(),
-    ]));
-
-  const HEADERS = ["#", "Candidate Name", "Batch", "Answered", "Unanswered", "Correct", "Negative", "Total Marks", "Date"];
+    ]);
 
   const exportPDF = () => {
-    if (!submissions.length) return toast.error("No data to export");
+    if (!filteredSubmissions.length) return toast.error("No filtered data to export. Apply a filter first.");
     const doc = new jsPDF({ orientation: "landscape" });
     doc.setFontSize(14);
     doc.text("Performance Analytics Report", 14, 15);
     doc.setFontSize(9);
-    doc.text(`Exported on ${new Date().toLocaleString()}`, 14, 22);
+    doc.text(`Filter: ${filterSubtitle()}`, 14, 22);
+    doc.text(`Exported on ${new Date().toLocaleString()}`, 14, 27);
     autoTable(doc, {
       head: [HEADERS],
       body: getTableRows(),
-      startY: 27,
+      startY: 33,
       styles: { fontSize: 8, cellPadding: 3 },
       headStyles: { fillColor: [0, 180, 200], textColor: 255, fontStyle: "bold" },
       alternateRowStyles: { fillColor: [240, 250, 255] },
@@ -243,9 +281,9 @@ const AdminDashboard = () => {
   };
 
   const exportExcel = () => {
-    if (!submissions.length) return toast.error("No data to export");
+    if (!filteredSubmissions.length) return toast.error("No filtered data to export. Apply a filter first.");
     const ws = XLSX.utils.aoa_to_sheet([HEADERS, ...getTableRows()]);
-    ws["!cols"] = HEADERS.map((h, i) => ({ wch: [4, 22, 10, 10, 12, 10, 10, 14, 12][i] }));
+    ws["!cols"] = HEADERS.map((_, i) => ({ wch: [4, 22, 10, 18, 10, 12, 10, 10, 14, 12][i] }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Analytics");
     XLSX.writeFile(wb, `${exportLabel()}.xlsx`);
@@ -253,7 +291,7 @@ const AdminDashboard = () => {
   };
 
   const exportDocs = () => {
-    if (!submissions.length) return toast.error("No data to export");
+    if (!filteredSubmissions.length) return toast.error("No filtered data to export. Apply a filter first.");
     const rows = getTableRows();
     const thStyle = `style="background:#00b4c8;color:#fff;padding:6px 10px;border:1px solid #ccc;text-align:left;"`;
     const tdStyle = `style="padding:5px 10px;border:1px solid #ddd;"`;
@@ -264,11 +302,12 @@ const AdminDashboard = () => {
       <head><meta charset="utf-8"><title>Performance Analytics</title></head>
       <body>
         <h2 style="font-family:Arial">Performance Analytics Report</h2>
+        <p style="font-family:Arial;font-size:11px;color:#555">Filter: ${filterSubtitle()}</p>
         <p style="font-family:Arial;font-size:11px">Exported: ${new Date().toLocaleString()}</p>
         <table style="border-collapse:collapse;font-family:Arial;font-size:11px;width:100%">
           <thead><tr>${HEADERS.map(h => `<th ${thStyle}>${h}</th>`).join("")}</tr></thead>
           <tbody>${rows.map((row, ri) =>
-      `<tr style="background:${ri % 2 === 0 ? "#f9f9f9" : "#fff"}">${row.map(cell => `<td ${tdStyle}>${cell}</td>`).join("")}</tr>`
+      `<tr style="background:${ri % 2 === 0 ? "#f9f9f9" : "#fff"}"><${row.map(cell => `<td ${tdStyle}>${cell}</td>`).join("")}</tr>`
     ).join("")}</tbody>
         </table>
       </body></html>`;
@@ -733,7 +772,9 @@ const AdminDashboard = () => {
 
         {/* ===== PERFORMANCE ANALYTICS ===== */}
         <div className="mb-12">
-          <div className="flex justify-between items-center mb-6" style={{ flexWrap: "wrap", gap: "0.75rem" }}>
+
+          {/* Header Row */}
+          <div className="flex justify-between items-center mb-4" style={{ flexWrap: "wrap", gap: "0.75rem" }}>
             <h2 className="analytics-header-title">
               <Users size={24} className="text-primary" /> Performance Analytics
             </h2>
@@ -748,7 +789,7 @@ const AdminDashboard = () => {
               <button
                 className="btn btn-sm"
                 onClick={exportPDF}
-                title="Export as PDF"
+                title="Export filtered data as PDF"
                 style={{ background: "rgba(239,68,68,0.12)", color: "#f87171", border: "1px solid rgba(239,68,68,0.25)", display: "flex", alignItems: "center", gap: "6px" }}
               >
                 <FileDown size={14} /> PDF
@@ -756,7 +797,7 @@ const AdminDashboard = () => {
               <button
                 className="btn btn-sm"
                 onClick={exportExcel}
-                title="Export as Excel / Google Sheets"
+                title="Export filtered data as Excel / Google Sheets"
                 style={{ background: "rgba(34,197,94,0.12)", color: "#4ade80", border: "1px solid rgba(34,197,94,0.25)", display: "flex", alignItems: "center", gap: "6px" }}
               >
                 <FileSpreadsheet size={14} /> Sheets
@@ -764,13 +805,75 @@ const AdminDashboard = () => {
               <button
                 className="btn btn-sm"
                 onClick={exportDocs}
-                title="Export as Word Document"
+                title="Export filtered data as Word Document"
                 style={{ background: "rgba(59,130,246,0.12)", color: "#60a5fa", border: "1px solid rgba(59,130,246,0.25)", display: "flex", alignItems: "center", gap: "6px" }}
               >
                 <FileText size={14} /> Docs
               </button>
             </div>
           </div>
+
+          {/* ── Filter Bar ── */}
+          <div
+            className="card flex gap-4 items-center mb-4"
+            style={{ padding: "0.85rem 1.25rem", flexWrap: "wrap", gap: "1rem" }}
+          >
+            <Filter size={16} className="text-secondary" style={{ flexShrink: 0 }} />
+
+            {/* Batch Filter */}
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-secondary" style={{ whiteSpace: "nowrap" }}>
+                Batch
+              </label>
+              <select
+                value={analyticsFilterBatch}
+                onChange={(e) => setAnalyticsFilterBatch(e.target.value)}
+                className="course-filter-select"
+              >
+                <option value="">— Select Batch —</option>
+                {BATCH_OPTIONS.map((b) => (
+                  <option key={b} value={b}>{b}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Topic / Designation Filter */}
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-secondary" style={{ whiteSpace: "nowrap" }}>
+                Topic Designation
+              </label>
+              <select
+                value={analyticsFilterTopic}
+                onChange={(e) => setAnalyticsFilterTopic(e.target.value)}
+                className="course-filter-select"
+              >
+                <option value="">— Select Topic —</option>
+                {topicOptions.map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Clear Filters */}
+            {(analyticsFilterBatch || analyticsFilterTopic) && (
+              <button
+                className="btn btn-secondary btn-sm"
+                style={{ padding: "0.3rem 0.75rem", fontSize: "0.75rem" }}
+                onClick={() => { setAnalyticsFilterBatch(""); setAnalyticsFilterTopic(""); }}
+              >
+                <X size={12} /> Clear
+              </button>
+            )}
+
+            {/* Live result count */}
+            {(analyticsFilterBatch || analyticsFilterTopic) && (
+              <span className="text-xs text-secondary" style={{ marginLeft: "auto" }}>
+                {filteredSubmissions.length} result{filteredSubmissions.length !== 1 ? "s" : ""} found
+              </span>
+            )}
+          </div>
+
+          {/* ── Table ── */}
           <div className="card table-container" style={{ padding: 0 }}>
             <table>
               <thead>
@@ -778,18 +881,46 @@ const AdminDashboard = () => {
                   <th scope="col">ID</th>
                   <th scope="col">Candidate Name</th>
                   <th scope="col">Batch</th>
-                  <th scope="col" style={{ width: "220px" }}>
-                    Score Analytics
-                  </th>
-                  <th scope="col">Completion Date</th>
+                  <th scope="col">Topic</th>
+                  <th scope="col" style={{ width: "220px" }}>Score Analytics</th>
+                  <th scope="col">Date</th>
                 </tr>
               </thead>
               <tbody>
-                {submissions.map((sub, index) => (
+                {/* Prompt to apply filter when nothing selected */}
+                {!analyticsFilterBatch && !analyticsFilterTopic && (
+                  <tr>
+                    <td colSpan="6" className="text-center py-12 text-secondary">
+                      <Filter size={32} className="mx-auto mb-3 opacity-20" />
+                      <p style={{ fontWeight: 600, marginBottom: "0.25rem" }}>
+                        Select a Batch or Topic Designation to view results
+                      </p>
+                      <p className="text-xs" style={{ opacity: 0.6 }}>
+                        Use the filters above, then export using PDF, Sheets, or Docs.
+                      </p>
+                    </td>
+                  </tr>
+                )}
+
+                {/* No results after filter */}
+                {(analyticsFilterBatch || analyticsFilterTopic) && filteredSubmissions.length === 0 && (
+                  <tr>
+                    <td colSpan="6" className="text-center py-12 text-secondary">
+                      <AlertCircle size={32} className="mx-auto mb-3 opacity-20" />
+                      No submissions found for the selected filter.
+                    </td>
+                  </tr>
+                )}
+
+                {/* Filtered results */}
+                {filteredSubmissions.map((sub, index) => (
                   <tr key={sub._id}>
                     <td className="text-secondary">#{index + 1}</td>
                     <td style={{ fontWeight: 600 }}>{sub.userName}</td>
                     <td className="text-sm">{sub.batch}</td>
+                    <td className="text-sm">
+                      {modules.find((m) => m._id === sub.moduleId)?.topicName || "—"}
+                    </td>
                     <td>
                       <div className="flex flex-col gap-1 score-analytics-wrapper">
                         <div className="flex justify-between">
@@ -803,25 +934,15 @@ const AdminDashboard = () => {
                           <span>{sub.unattended || 0}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-secondary">
-                            Correct Answer:
-                          </span>
-                          <span className="text-secondary font-bold">
-                            {sub.correct || 0}
-                          </span>
+                          <span className="text-secondary">Correct:</span>
+                          <span className="text-secondary font-bold">{sub.correct || 0}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-secondary">
-                            Negative Answer:
-                          </span>
-                          <span className="text-danger font-bold">
-                            {sub.wrong || 0}
-                          </span>
+                          <span className="text-secondary">Negative:</span>
+                          <span className="text-danger font-bold">{sub.wrong || 0}</span>
                         </div>
                         <div className="flex justify-between mt-1 pt-1 score-divider">
-                          <span className="text-primary font-bold uppercase">
-                            Total Marks:
-                          </span>
+                          <span className="text-primary font-bold uppercase">Total Marks:</span>
                           <span className="text-primary font-bold">
                             {sub.score} / {sub.totalQuestions}
                           </span>
@@ -833,16 +954,6 @@ const AdminDashboard = () => {
                     </td>
                   </tr>
                 ))}
-                {submissions.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan="5"
-                      className="text-center py-12 text-secondary"
-                    >
-                      No submission data available in the current cycle.
-                    </td>
-                  </tr>
-                )}
               </tbody>
             </table>
           </div>
@@ -978,14 +1089,9 @@ const AdminDashboard = () => {
                       <p style={{ fontWeight: 600, marginBottom: q.questionType === "code" && q.codeSnippet ? "0.4rem" : "0.75rem" }}>
                         {q.qn}
                       </p>
-                      {/* Code block — only for code-type questions */}
+                      {/* Code block — syntax-highlighted */}
                       {q.questionType === "code" && q.codeSnippet && (
-                        <pre style={{
-                          fontFamily: "'Courier New', monospace", fontSize: "0.82rem",
-                          background: "rgba(0,0,0,0.4)", border: "1px solid rgba(0,245,255,0.15)",
-                          borderRadius: "8px", padding: "0.75rem", marginBottom: "0.75rem",
-                          whiteSpace: "pre-wrap", wordBreak: "break-word", color: "#7dd3fc",
-                        }}>{q.codeSnippet}</pre>
+                        <CodeHighlighter code={q.codeSnippet} />
                       )}
                       <div className="grid gap-2" style={{ gridTemplateColumns: "1fr 1fr" }}>
                         {['A', 'B', 'C', 'D'].map((letter, i) => (

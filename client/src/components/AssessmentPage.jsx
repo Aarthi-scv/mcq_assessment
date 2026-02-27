@@ -18,12 +18,26 @@ const LS_MODULE_ID = "mcq_moduleId";
 const LS_ANSWERS = "mcq_answers";
 const LS_TIMER = "mcq_timer";
 const LS_REVISIT = "mcq_revisit";
+const LS_QUESTION_ORDER = "mcq_question_order"; // persisted shuffle order
 
 /** Remove every session key from localStorage after a successful submission */
 const clearSession = () => {
-  [LS_MODULE_ID, LS_ANSWERS, LS_TIMER, LS_REVISIT].forEach((k) =>
-    localStorage.removeItem(k)
+  [LS_MODULE_ID, LS_ANSWERS, LS_TIMER, LS_REVISIT, LS_QUESTION_ORDER].forEach(
+    (k) => localStorage.removeItem(k)
   );
+};
+
+/**
+ * Fisher-Yates shuffle — returns a NEW shuffled array, does not mutate input.
+ * Each candidate gets a unique random order.
+ */
+const shuffleArray = (arr) => {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
 };
 
 const AssessmentPage = () => {
@@ -129,7 +143,35 @@ const AssessmentPage = () => {
         ]);
 
         if (qRes.data.length === 0) toast.error("No questions found for this module.");
-        setQuestions(qRes.data);
+
+        // ── Randomize question order (unique per candidate) ─────────────────
+        // Check if we already have a saved order from a previous session/refresh
+        const savedOrderRaw = localStorage.getItem(LS_QUESTION_ORDER);
+        let orderedQuestions;
+
+        if (savedOrderRaw) {
+          // Resume: restore exact same order as before the refresh
+          try {
+            const savedOrder = JSON.parse(savedOrderRaw); // array of _id strings
+            const qMap = Object.fromEntries(qRes.data.map((q) => [q._id, q]));
+            const restored = savedOrder.map((id) => qMap[id]).filter(Boolean);
+            // If any new questions were added since last save, append them
+            const restoredIds = new Set(savedOrder);
+            const extra = qRes.data.filter((q) => !restoredIds.has(q._id));
+            orderedQuestions = [...restored, ...extra];
+          } catch {
+            orderedQuestions = shuffleArray(qRes.data); // fallback
+          }
+        } else {
+          // Fresh start: shuffle and persist the order
+          orderedQuestions = shuffleArray(qRes.data);
+          localStorage.setItem(
+            LS_QUESTION_ORDER,
+            JSON.stringify(orderedQuestions.map((q) => q._id))
+          );
+        }
+
+        setQuestions(orderedQuestions);
 
         if (aRes.data && aRes.data.timer) {
           // Only use server timer if NO saved timer exists

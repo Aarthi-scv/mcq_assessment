@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import toast from "react-hot-toast";
-import { PlusCircle, Minus, ArrowLeft, Code2 } from "lucide-react";
+import { PlusCircle, Minus, ArrowLeft, Code2, Eye } from "lucide-react";
+import CodeHighlighter from "./Assessment/CodeHighlighter";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 const BATCH_OPTIONS = ["DV-B8", "DV-B9", "DV-B10", "DV-B11", "DV-B12", "ES-B2", "ES-B3"];
@@ -256,13 +257,17 @@ const CreateModule = () => {
                                     style={{ marginBottom: "0.75rem" }}
                                 />
 
-                                {/* Code Snippet — only shown when questionType is "code" */}
+                                {/* Code Snippet — textarea + live syntax preview */}
                                 {q.questionType === "code" && (
                                     <div style={{ marginBottom: "0.75rem" }}>
+
+                                        {/* Textarea Label */}
                                         <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
                                             <Code2 size={13} style={{ color: "var(--primary-color)" }} />
                                             <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>Code Snippet</span>
                                         </div>
+
+                                        {/* Raw textarea — where admin types */}
                                         <textarea
                                             placeholder="Paste your code snippet here..."
                                             value={q.codeSnippet}
@@ -270,7 +275,7 @@ const CreateModule = () => {
                                             required
                                             rows={6}
                                             style={{
-                                                fontFamily: "'Courier New', Courier, monospace",
+                                                fontFamily: "'JetBrains Mono','Fira Code','Courier New',monospace",
                                                 fontSize: "0.82rem",
                                                 lineHeight: 1.6,
                                                 resize: "vertical",
@@ -279,10 +284,32 @@ const CreateModule = () => {
                                                 border: "1px solid var(--border-color)",
                                                 borderRadius: "8px",
                                                 padding: "0.6rem 0.8rem",
-                                                color: "#7dd3fc",
+                                                color: "#e4e4e7",
                                                 boxSizing: "border-box",
                                             }}
                                         />
+
+                                        {/* Live Highlighted Preview — only when there is content */}
+                                        {q.codeSnippet && (
+                                            <div style={{ marginTop: "0.5rem" }}>
+                                                <div
+                                                    style={{
+                                                        display: "flex",
+                                                        alignItems: "center",
+                                                        gap: "5px",
+                                                        marginBottom: "4px",
+                                                        fontSize: "0.7rem",
+                                                        color: "rgba(0,245,255,0.5)",
+                                                        letterSpacing: "0.05em",
+                                                        textTransform: "uppercase",
+                                                    }}
+                                                >
+                                                    <Eye size={11} />
+                                                    Live Preview
+                                                </div>
+                                                <CodeHighlighter code={q.codeSnippet} />
+                                            </div>
+                                        )}
                                     </div>
                                 )}
 
