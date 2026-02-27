@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import axios from "axios";
 import { useNavigate, useLocation } from "react-router-dom";
 import toast from "react-hot-toast";
+import { WifiOff, Wifi } from "lucide-react";
 
 // Sub-components
 import LoadingScreen from "./Assessment/LoadingScreen";
@@ -12,29 +13,105 @@ import AssessmentSidebar from "./Assessment/AssessmentSidebar";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
+// ─── localStorage keys ────────────────────────────────────────────────────────
+const LS_MODULE_ID = "mcq_moduleId";
+const LS_ANSWERS = "mcq_answers";
+const LS_TIMER = "mcq_timer";
+const LS_REVISIT = "mcq_revisit";
+
+/** Remove every session key from localStorage after a successful submission */
+const clearSession = () => {
+  [LS_MODULE_ID, LS_ANSWERS, LS_TIMER, LS_REVISIT].forEach((k) =>
+    localStorage.removeItem(k)
+  );
+};
+
 const AssessmentPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const moduleId = location.state?.moduleId;
 
-  // State
+  // Prefer live navigation state; fall back to what we persisted on last load
+  const moduleId =
+    location.state?.moduleId || localStorage.getItem(LS_MODULE_ID) || null;
+
+  // ── State ──────────────────────────────────────────────────────────────────
   const [questions, setQuestions] = useState([]);
-  const [answers, setAnswers] = useState({}); // { questionId: selectedOption }
-  const [revisitWork, setRevisitWork] = useState(new Set());
-  const [timer, setTimer] = useState(10 * 60); // 10 minutes default
+  const [answers, setAnswers] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(LS_ANSWERS)) || {}; }
+    catch { return {}; }
+  });
+  const [revisitWork, setRevisitWork] = useState(() => {
+    try { return new Set(JSON.parse(localStorage.getItem(LS_REVISIT)) || []); }
+    catch { return new Set(); }
+  });
+  const [timer, setTimer] = useState(() => {
+    const saved = parseInt(localStorage.getItem(LS_TIMER), 10);
+    return saved > 0 ? saved : 10 * 60;        // restore or default 10 min
+  });
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submissionResult, setSubmissionResult] = useState(null);
   const [submissionId, setSubmissionId] = useState(null);
   const [feedback, setFeedback] = useState({ rating: 0, comment: "" });
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [retryPending, setRetryPending] = useState(false); // queued submit
 
-  // 1. Fetch Questions & Assessment Details
+  // Keep a ref to the latest answers/moduleId for use inside timer callbacks
+  const answersRef = useRef(answers);
+  const moduleIdRef = useRef(moduleId);
+  const userRef = useRef(user);
+  const feedbackRef = useRef(feedback);
+
+  useEffect(() => { answersRef.current = answers; }, [answers]);
+  useEffect(() => { moduleIdRef.current = moduleId; }, [moduleId]);
+  useEffect(() => { userRef.current = user; }, [user]);
+  useEffect(() => { feedbackRef.current = feedback; }, [feedback]);
+
+  // ── Persist answers to localStorage on every change ────────────────────────
+  useEffect(() => {
+    localStorage.setItem(LS_ANSWERS, JSON.stringify(answers));
+  }, [answers]);
+
+  // ── Persist revisit set to localStorage on every change ───────────────────
+  useEffect(() => {
+    localStorage.setItem(LS_REVISIT, JSON.stringify([...revisitWork]));
+  }, [revisitWork]);
+
+  // ── Persist moduleId to localStorage as soon as we know it ────────────────
+  useEffect(() => {
+    if (moduleId) localStorage.setItem(LS_MODULE_ID, moduleId);
+  }, [moduleId]);
+
+  // ── Online / Offline detection ─────────────────────────────────────────────
+  useEffect(() => {
+    const goOnline = () => setIsOnline(true);
+    const goOffline = () => setIsOnline(false);
+    window.addEventListener("online", goOnline);
+    window.addEventListener("offline", goOffline);
+    return () => {
+      window.removeEventListener("online", goOnline);
+      window.removeEventListener("offline", goOffline);
+    };
+  }, []);
+
+  // ── When connectivity is restored, retry a pending submission ──────────────
+  useEffect(() => {
+    if (isOnline && retryPending) {
+      toast("🌐 Connection restored — submitting your answers…", {
+        duration: 4000,
+        style: { background: "#1e293b", color: "#fff" },
+      });
+      setRetryPending(false);
+      handleSubmit(true, true); // auto=true, isRetry=true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOnline, retryPending]);
+
+  // ── 1. Fetch Questions & Assessment Details ────────────────────────────────
   useEffect(() => {
     const storedUser = localStorage.getItem("candidateUser");
-    if (!storedUser) {
-      navigate("/login");
-      return;
-    }
+    if (!storedUser) { navigate("/login"); return; }
+
     const userData = JSON.parse(storedUser);
     setUser(userData);
 
@@ -51,18 +128,20 @@ const AssessmentPage = () => {
           axios.get(`${API_URL}/active-assessment/${userData.batch}`),
         ]);
 
-        if (qRes.data.length === 0) {
-          toast.error("No questions found for this module.");
-        }
+        if (qRes.data.length === 0) toast.error("No questions found for this module.");
         setQuestions(qRes.data);
 
-        // aRes.data contains the active module metadata
         if (aRes.data && aRes.data.timer) {
-          // Use the FULL timer from the module so students get their full duration
-          // regardless of when they started within the availability window.
-          setTimer(aRes.data.timer * 60);
+          // Only use server timer if NO saved timer exists
+          // (i.e. this is a fresh start, not a resume after refresh)
+          const savedTimer = parseInt(localStorage.getItem(LS_TIMER), 10);
+          if (!savedTimer || savedTimer <= 0) {
+            setTimer(aRes.data.timer * 60);
+          }
+          // else: keep the already-restored timer from useState initialiser
         } else {
           toast.error("This assessment session is no longer active.");
+          clearSession();
           navigate("/candidate-dashboard");
           return;
         }
@@ -75,22 +154,30 @@ const AssessmentPage = () => {
         setLoading(false);
       }
     };
-    fetchData();
-  }, [moduleId, navigate]);
 
-  // 2. Timer Logic
+    fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── 2. Timer Logic — tick every second & persist remaining time ────────────
   useEffect(() => {
     if (submissionResult) return;
 
     const interval = setInterval(() => {
       setTimer((prev) => {
-        if (prev <= 1) {
+        const next = prev - 1;
+
+        // Persist remaining time every second
+        localStorage.setItem(LS_TIMER, next);
+
+        if (next <= 0) {
           clearInterval(interval);
-          handleSubmit(true);
+          handleSubmit(true); // auto submit
           return 0;
         }
-        if (prev === 120) {
-          toast("⚠️ 2 minutes remaining! Finalize your logic selections.", {
+
+        if (next === 120) {
+          toast("⚠️ 2 minutes remaining! Finalize your selections.", {
             icon: "⏳",
             duration: 10000,
             style: {
@@ -101,14 +188,15 @@ const AssessmentPage = () => {
             },
           });
         }
-        return prev - 1;
+        return next;
       });
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [submissionResult, questions, answers]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [submissionResult]);
 
-  // 3. Tab Switch Detection
+  // ── 3. Tab Switch Detection ────────────────────────────────────────────────
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.hidden && !submissionResult) {
@@ -116,11 +204,10 @@ const AssessmentPage = () => {
       }
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () =>
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, [submissionResult]);
 
-  // Handlers
+  // ── Handlers ───────────────────────────────────────────────────────────────
   const handleSelect = (questionId, option) => {
     setAnswers((prev) => ({ ...prev, [questionId]: option }));
   };
@@ -128,8 +215,7 @@ const AssessmentPage = () => {
   const toggleRevisit = (questionId) => {
     setRevisitWork((prev) => {
       const next = new Set(prev);
-      if (next.has(questionId)) next.delete(questionId);
-      else next.add(questionId);
+      next.has(questionId) ? next.delete(questionId) : next.add(questionId);
       return next;
     });
   };
@@ -143,42 +229,70 @@ const AssessmentPage = () => {
   };
 
   const scrollToQuestion = (index) => {
-    const element = document.getElementById(`q-${index}`);
-    if (element) {
-      element.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
+    const el = document.getElementById(`q-${index}`);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  const handleSubmit = async (auto = false) => {
-    if (!user?.name && !auto) {
+  // ── Submit (with offline queuing & retry) ──────────────────────────────────
+  const handleSubmit = useCallback(async (auto = false, isRetry = false) => {
+    const currentUser = userRef.current;
+    const currentAnswers = answersRef.current;
+    const currentModule = moduleIdRef.current;
+    const currentFeedback = feedbackRef.current;
+
+    if (!currentUser?.name && !auto) {
       return toast.error("Candidate identity required for submission.");
     }
 
+    // If offline, queue and inform user
+    if (!navigator.onLine) {
+      setRetryPending(true);
+      if (!isRetry) {
+        toast.error(
+          "⚠️ No internet connection! Your answers are saved locally and will be submitted automatically when you reconnect.",
+          { duration: 8000, style: { background: "#1e293b", color: "#fff" } }
+        );
+      }
+      return;
+    }
+
     const payload = {
-      userName: user?.name || "Anonymous_System_Auto",
-      batch: user?.batch,
-      moduleId: moduleId,
-      answers: Object.entries(answers).map(([qid, opt]) => ({
+      userName: currentUser?.name || "Anonymous_System_Auto",
+      batch: currentUser?.batch,
+      moduleId: currentModule,
+      answers: Object.entries(currentAnswers).map(([qid, opt]) => ({
         questionId: qid,
         selectedOption: opt,
       })),
-      feedback: feedback,
+      feedback: currentFeedback,
     };
 
     try {
       const token = localStorage.getItem("candidateToken");
       const res = await axios.post(`${API_URL}/submit`, payload, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
+
+      // ✅ Success — clear persisted session
+      clearSession();
+
       setSubmissionResult(res.data.result);
       setSubmissionId(res.data.submissionId);
+
       if (auto) toast("Assessment auto-submitted: Time Expired.");
       else toast.success("Data transmitted successfully!");
-    } catch (err) {
-      toast.error("Transmission failed. Retry connection.");
-    }
-  };
 
+    } catch (err) {
+      // Network failure during submit → queue for retry
+      setRetryPending(true);
+      toast.error(
+        "Submission failed — your answers are saved. Will retry when connection is restored.",
+        { duration: 8000, style: { background: "#1e293b", color: "#fff" } }
+      );
+    }
+  }, []);
+
+  // ── Render ─────────────────────────────────────────────────────────────────
   if (loading) return <LoadingScreen />;
 
   if (submissionResult) {
@@ -195,7 +309,49 @@ const AssessmentPage = () => {
 
   return (
     <div className="assessment-container">
-      <div className="q-list-container fade-in">
+
+      {/* ── Offline / Retry Banner ── */}
+      {(!isOnline || retryPending) && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 9999,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "10px",
+            padding: "10px 20px",
+            background: !isOnline
+              ? "linear-gradient(90deg,#7f1d1d,#991b1b)"
+              : "linear-gradient(90deg,#78350f,#92400e)",
+            color: "#fff",
+            fontSize: "0.875rem",
+            fontWeight: 600,
+            boxShadow: "0 2px 12px rgba(0,0,0,0.4)",
+          }}
+        >
+          {!isOnline ? (
+            <>
+              <WifiOff size={16} />
+              No Internet Connection — Your answers are saved locally and will
+              be submitted automatically when you reconnect.
+            </>
+          ) : (
+            <>
+              <Wifi size={16} />
+              Connection restored — submitting your saved answers…
+            </>
+          )}
+        </div>
+      )}
+
+      <div
+        className="q-list-container fade-in"
+        style={{ paddingTop: !isOnline || retryPending ? "48px" : undefined }}
+      >
         <AssessmentHeader user={user} timer={timer} />
 
         <div className="flex flex-col gap-10 pb-20 max-w-4xl mx-auto w-full">

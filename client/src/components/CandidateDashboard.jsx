@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import {
@@ -11,6 +11,7 @@ import {
   Cpu,
   CheckCircle,
   FileText,
+  Radio,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -21,25 +22,74 @@ const CandidateDashboard = () => {
   const [activeModule, setActiveModule] = useState(null);
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isPolling, setIsPolling] = useState(false); // live indicator
   const navigate = useNavigate();
+
+  // Keep refs so the interval callback always has current values
+  const activeModuleRef = useRef(null);
+  const batchRef = useRef(null);
+  const pollingInterval = useRef(null);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("candidateUser");
     const token = localStorage.getItem("candidateToken");
-    if (!storedUser || !token) {
-      navigate("/login");
-      return;
-    }
+    if (!storedUser || !token) { navigate("/login"); return; }
+
     const userData = JSON.parse(storedUser);
     setUser(userData);
+    batchRef.current = userData.batch;
+
+    // Initial fetch
     fetchActiveAssessment(userData.batch);
     fetchUserSubmissions(userData.name, token);
+
+    // ── Auto-poll every 5 s for an active assessment ──────────────────────
+    setIsPolling(true);
+    pollingInterval.current = setInterval(async () => {
+      // Stop polling once we have an active module already
+      if (activeModuleRef.current) {
+        clearInterval(pollingInterval.current);
+        setIsPolling(false);
+        return;
+      }
+      try {
+        const res = await axios.get(
+          `${API_URL}/active-assessment/${batchRef.current}`
+        );
+        if (res.data && res.data._id) {
+          activeModuleRef.current = res.data;
+          setActiveModule(res.data);
+          clearInterval(pollingInterval.current);
+          setIsPolling(false);
+          // Notify candidate
+          toast("🚀 Your assessment is now live! Click to begin.", {
+            duration: 8000,
+            style: {
+              background: "#0f172a",
+              color: "#fff",
+              border: "1px solid var(--primary-color)",
+              borderRadius: "10px",
+            },
+          });
+        }
+      } catch {
+        // No active session yet — keep waiting silently
+      }
+    }, 5000); // poll every 5 seconds
+
+    return () => clearInterval(pollingInterval.current); // cleanup on unmount
   }, [navigate]);
 
   const fetchActiveAssessment = async (batch) => {
     try {
       const res = await axios.get(`${API_URL}/active-assessment/${batch}`);
+      activeModuleRef.current = res.data || null;
       setActiveModule(res.data);
+      // If already active on initial load, stop polling immediately
+      if (res.data && res.data._id) {
+        clearInterval(pollingInterval.current);
+        setIsPolling(false);
+      }
     } catch (err) {
       console.log("No active assessment for this batch.");
       setActiveModule(null);
@@ -241,6 +291,18 @@ const CandidateDashboard = () => {
               <p className="text-xs text-secondary mt-2">
                 Please wait for admin authorization.
               </p>
+              {/* Live polling indicator */}
+              {isPolling && (
+                <div
+                  className="flex items-center justify-center gap-2 mt-5"
+                  style={{ color: "var(--primary-color)", fontSize: "0.75rem" }}
+                >
+                  <Radio size={13} className="animate-pulse" />
+                  <span style={{ opacity: 0.7 }}>
+                    Listening for admin activation&hellip;
+                  </span>
+                </div>
+              )}
             </div>
           )}
         </div>
