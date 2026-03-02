@@ -173,10 +173,14 @@ const AssessmentPage = () => {
         setQuestions(orderedQuestions);
 
         if (aRes.data && aRes.data.timer) {
+          const serverActivatedAt = aRes.data.activatedAt ? new Date(aRes.data.activatedAt).getTime() : 0;
+          const totalDurationSeconds = aRes.data.timer * 60;
+          const now = Date.now();
+          const absoluteRemaining = Math.max(0, totalDurationSeconds - Math.floor((now - serverActivatedAt) / 1000));
+
           const savedTimer = parseInt(localStorage.getItem(LS_TIMER), 10);
           const savedModuleId = localStorage.getItem(LS_MODULE_ID);
           const savedActivatedAt = localStorage.getItem(LS_ACTIVATED_AT);
-          const serverActivatedAt = aRes.data.activatedAt ? new Date(aRes.data.activatedAt).getTime() : 0;
 
           // A session is considered "resumable" only if it's the same module AND same activation instance
           const isSameInstance = savedActivatedAt && parseInt(savedActivatedAt, 10) === serverActivatedAt;
@@ -185,12 +189,10 @@ const AssessmentPage = () => {
           if (isResumable) {
             setTimer(savedTimer);
           } else {
-            // Fresh instance or admin restarted: use server timer and clear old answers
-            const freshTimer = aRes.data.timer * 60;
-            setTimer(freshTimer);
+            setTimer(absoluteRemaining);
             setAnswers({});
             setRevisitWork(new Set());
-            localStorage.setItem(LS_TIMER, freshTimer);
+            localStorage.setItem(LS_TIMER, absoluteRemaining);
             localStorage.setItem(LS_ANSWERS, JSON.stringify({}));
             localStorage.setItem(LS_REVISIT, JSON.stringify([]));
             localStorage.setItem(LS_ACTIVATED_AT, serverActivatedAt.toString());
@@ -227,16 +229,20 @@ const AssessmentPage = () => {
           return;
         }
 
-        // If server timer has changed significantly (e.g. admin extended it), update local timer
+        // Calculate current absolute remaining time
         if (aRes.data.timer) {
-          const serverTimerSeconds = aRes.data.timer * 60;
+          const serverActivatedAt = aRes.data.activatedAt ? new Date(aRes.data.activatedAt).getTime() : 0;
+          const totalDurationSeconds = aRes.data.timer * 60;
+          const now = Date.now();
+          const absoluteRemaining = Math.max(0, totalDurationSeconds - Math.floor((now - serverActivatedAt) / 1000));
+
           const currentLocalTimer = parseInt(localStorage.getItem(LS_TIMER), 10);
 
-          // If the difference is more than 30 seconds (to avoid jitter), sync it
-          if (Math.abs(serverTimerSeconds - currentLocalTimer) > 30) {
-            setTimer(serverTimerSeconds);
-            localStorage.setItem(LS_TIMER, serverTimerSeconds);
-            toast("🕒 Instructor has updated the session timer.", { icon: "ℹ️" });
+          // If the difference is significant (admin extended it or local lag > 30s), resync
+          if (Math.abs(absoluteRemaining - currentLocalTimer) > 30) {
+            setTimer(absoluteRemaining);
+            localStorage.setItem(LS_TIMER, absoluteRemaining);
+            toast("🕒 Session timer synchronized with instructor settings.", { icon: "ℹ️" });
           }
         }
       } catch (err) {

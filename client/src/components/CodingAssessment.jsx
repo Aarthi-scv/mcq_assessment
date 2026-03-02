@@ -113,6 +113,7 @@ export default function CodingAssessment() {
     const tabCountRef = useRef(0);   // keep in sync with state for visibility handler
     const moduleRef = useRef(null);
     const submittingRef = useRef(false);
+    const activatedAtRef = useRef(null);
 
     const user = JSON.parse(localStorage.getItem("candidateUser") || "{}");
     const token = localStorage.getItem("candidateToken");
@@ -130,6 +131,7 @@ export default function CodingAssessment() {
 
                 const saved = localStorage.getItem(LS_KEY);
                 const serverActivatedAt = mod.activatedAt ? new Date(mod.activatedAt).getTime() : 0;
+                activatedAtRef.current = serverActivatedAt;
 
                 if (saved) {
                     const s = JSON.parse(saved);
@@ -156,12 +158,17 @@ export default function CodingAssessment() {
                 setModule(mod);
                 setCodes(initCodes);
                 setResults(initResults);
-                const freshTimer = (mod.timer || 60) * 60;
-                setTimeLeft(freshTimer);
+
+                const now = Date.now();
+                const totalDurationSeconds = (mod.timer || 60) * 60;
+                const timeElapsedSinceStart = Math.floor((now - serverActivatedAt) / 1000);
+                const absoluteRemaining = Math.max(0, totalDurationSeconds - timeElapsedSinceStart);
+
+                setTimeLeft(absoluteRemaining);
                 // Save initial state with activatedAt
                 localStorage.setItem(LS_KEY, JSON.stringify({
                     moduleId, module: mod, codes: initCodes, results: initResults,
-                    qIndex: 0, timeLeft: freshTimer, activatedAt: serverActivatedAt
+                    qIndex: 0, timeLeft: absoluteRemaining, activatedAt: serverActivatedAt
                 }));
             } catch {
                 toast.error("Could not load coding assessment. Check your batch assignment.");
@@ -183,16 +190,18 @@ export default function CodingAssessment() {
                     return;
                 }
 
-                // If server timer has changed significantly
                 if (aRes.data.timer) {
-                    const serverTimerSeconds = aRes.data.timer * 60;
-                    // Note: We don't have a simple LS_TIMER here like in MCQ, it's inside LS_KEY
+                    const serverActivatedAt = aRes.data.activatedAt ? new Date(aRes.data.activatedAt).getTime() : 0;
+                    const totalDurationSeconds = aRes.data.timer * 60;
+                    const now = Date.now();
+                    const absoluteRemaining = Math.max(0, totalDurationSeconds - Math.floor((now - serverActivatedAt) / 1000));
+
                     const saved = JSON.parse(localStorage.getItem(LS_KEY) || "{}");
                     const currentLocalTimer = saved.timeLeft || timeLeft;
 
-                    if (Math.abs(serverTimerSeconds - currentLocalTimer) > 30) {
-                        setTimeLeft(serverTimerSeconds);
-                        toast("🕒 Instructor has updated the session timer.", { icon: "ℹ️" });
+                    if (Math.abs(absoluteRemaining - currentLocalTimer) > 30) {
+                        setTimeLeft(absoluteRemaining);
+                        toast("🕒 Session timer synchronized with instructor settings.", { icon: "ℹ️" });
                     }
                 }
             } catch (err) {
@@ -218,8 +227,11 @@ export default function CodingAssessment() {
     // ── Persist session ──────────────────────────────────────────────────────
     useEffect(() => {
         if (!module) return;
-        localStorage.setItem(LS_KEY, JSON.stringify({ moduleId, module, codes, results, qIndex, timeLeft }));
-    }, [codes, results, qIndex, timeLeft]);
+        localStorage.setItem(LS_KEY, JSON.stringify({
+            moduleId, module, codes, results, qIndex, timeLeft,
+            activatedAt: activatedAtRef.current
+        }));
+    }, [codes, results, qIndex, timeLeft, module]);
 
     // ── Tab-switch detection ─────────────────────────────────────────────────
     useEffect(() => {
