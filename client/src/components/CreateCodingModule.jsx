@@ -10,7 +10,7 @@ import "./CreateCodingModule.css";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
-const BATCHES = ["ASIC-DV-01", "ASIC-DV-02", "Embedded-01", "Embedded-02", "VLSI-01", "VLSI-02"];
+const BATCHES = ["ES-B2", "ES-B3", "DV-B8", "DV-B9", "DV-B10", "DV-B11", "DV-B12"];
 
 const emptyTestCase = () => ({ input: "", expectedOutput: "" });
 const emptyQuestion = () => ({ questionText: "", testCases: [emptyTestCase(), emptyTestCase(), emptyTestCase()] });

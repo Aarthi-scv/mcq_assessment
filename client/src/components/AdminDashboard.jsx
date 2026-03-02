@@ -162,6 +162,10 @@ const AdminDashboard = () => {
   const [analyticsFilterBatch, setAnalyticsFilterBatch] = useState("");   // "" = not selected
   const [analyticsFilterTopic, setAnalyticsFilterTopic] = useState("");   // "" = not selected
 
+  // Coding Analytics
+  const [codingAnalytics, setCodingAnalytics] = useState([]);
+  const [codingAnalyticsBatch, setCodingAnalyticsBatch] = useState("");
+
   // View/Edit Questions Modal State
   const [viewModule, setViewModule] = useState(null);
   const [editingQuestion, setEditingQuestion] = useState(null);
@@ -1113,7 +1117,10 @@ const AdminDashboard = () => {
                 className="course-filter-select"
               >
                 <option value="">— All Batches —</option>
-                {BATCH_OPTIONS.map(b => <option key={b} value={b}>{b}</option>)}
+                {/* Derive batch list from coding modules' assignedBatch arrays */}
+                {[...new Set(
+                  codingModules.flatMap(m => m.assignedBatch || [])
+                )].sort().map(b => <option key={b} value={b}>{b}</option>)}
               </select>
               {codingAnalyticsBatch && (
                 <button className="btn btn-secondary" style={{ padding: "0.3rem 0.75rem", fontSize: "0.75rem" }} onClick={() => setCodingAnalyticsBatch("")}>
