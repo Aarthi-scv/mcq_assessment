@@ -159,16 +159,14 @@ export default function CodingAssessment() {
                 setCodes(initCodes);
                 setResults(initResults);
 
-                const now = Date.now();
-                const totalDurationSeconds = (mod.timer || 60) * 60;
-                const timeElapsedSinceStart = Math.floor((now - serverActivatedAt) / 1000);
-                const absoluteRemaining = Math.max(0, totalDurationSeconds - timeElapsedSinceStart);
+                // Requirement 2: Absolute duration starting from NOW (the moment the student enters)
+                const freshTimerSeconds = (mod.timer || 60) * 60;
+                setTimeLeft(freshTimerSeconds);
 
-                setTimeLeft(absoluteRemaining);
                 // Save initial state with activatedAt
                 localStorage.setItem(LS_KEY, JSON.stringify({
                     moduleId, module: mod, codes: initCodes, results: initResults,
-                    qIndex: 0, timeLeft: absoluteRemaining, activatedAt: serverActivatedAt
+                    qIndex: 0, timeLeft: freshTimerSeconds, activatedAt: serverActivatedAt
                 }));
             } catch {
                 toast.error("Could not load coding assessment. Check your batch assignment.");
@@ -192,16 +190,23 @@ export default function CodingAssessment() {
 
                 if (aRes.data.timer) {
                     const serverActivatedAt = aRes.data.activatedAt ? new Date(aRes.data.activatedAt).getTime() : 0;
-                    const totalDurationSeconds = aRes.data.timer * 60;
-                    const now = Date.now();
-                    const absoluteRemaining = Math.max(0, totalDurationSeconds - Math.floor((now - serverActivatedAt) / 1000));
-
+                    const serverTotalSeconds = aRes.data.timer * 60;
                     const saved = JSON.parse(localStorage.getItem(LS_KEY) || "{}");
-                    const currentLocalTimer = saved.timeLeft || timeLeft;
+                    const savedActivatedAt = saved.activatedAt;
 
-                    if (Math.abs(absoluteRemaining - currentLocalTimer) > 30) {
-                        setTimeLeft(absoluteRemaining);
-                        toast("🕒 Session timer synchronized with instructor settings.", { icon: "ℹ️" });
+                    // 1. Force Reset if instructor restarted the session
+                    if (savedActivatedAt && parseInt(savedActivatedAt) !== serverActivatedAt) {
+                        localStorage.removeItem(LS_KEY);
+                        toast("⚠️ Instructor has restarted the assessment. Progress reset.", { icon: "🔄" });
+                        window.location.reload(); // Force full state reset
+                        return;
+                    }
+
+                    // 2. Adjust if instructor reduced the total duration
+                    const currentLocalTimer = saved.timeLeft || timeLeft;
+                    if (currentLocalTimer > serverTotalSeconds) {
+                        setTimeLeft(serverTotalSeconds);
+                        toast("🕒 Instructor has reduced the session timer.", { icon: "ℹ️" });
                     }
                 }
             } catch (err) {

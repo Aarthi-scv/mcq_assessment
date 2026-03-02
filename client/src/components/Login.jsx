@@ -11,8 +11,17 @@ const Login = () => {
     name: "",
     email: "",
   });
-  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+
+  // Requirement 1: Redirect if already logged in
+  React.useEffect(() => {
+    const storedUser = localStorage.getItem("candidateUser");
+    const token = localStorage.getItem("candidateToken");
+    if (storedUser && token) {
+      navigate("/candidate-dashboard");
+    }
+  }, [navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

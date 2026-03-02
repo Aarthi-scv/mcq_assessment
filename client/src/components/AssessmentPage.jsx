@@ -174,25 +174,24 @@ const AssessmentPage = () => {
 
         if (aRes.data && aRes.data.timer) {
           const serverActivatedAt = aRes.data.activatedAt ? new Date(aRes.data.activatedAt).getTime() : 0;
-          const totalDurationSeconds = aRes.data.timer * 60;
-          const now = Date.now();
-          const absoluteRemaining = Math.max(0, totalDurationSeconds - Math.floor((now - serverActivatedAt) / 1000));
+          const freshTimerSeconds = aRes.data.timer * 60;
 
           const savedTimer = parseInt(localStorage.getItem(LS_TIMER), 10);
           const savedModuleId = localStorage.getItem(LS_MODULE_ID);
           const savedActivatedAt = localStorage.getItem(LS_ACTIVATED_AT);
 
-          // A session is considered "resumable" only if it's the same module AND same activation instance
+          // A session is resumable only if it belongs to the same ACTIVATION instance
           const isSameInstance = savedActivatedAt && parseInt(savedActivatedAt, 10) === serverActivatedAt;
           const isResumable = isSameInstance && savedTimer > 0 && savedModuleId === moduleId;
 
           if (isResumable) {
             setTimer(savedTimer);
           } else {
-            setTimer(absoluteRemaining);
+            // Requirement 2: Start from FULL duration when user first attends this activation
+            setTimer(freshTimerSeconds);
             setAnswers({});
             setRevisitWork(new Set());
-            localStorage.setItem(LS_TIMER, absoluteRemaining);
+            localStorage.setItem(LS_TIMER, freshTimerSeconds);
             localStorage.setItem(LS_ANSWERS, JSON.stringify({}));
             localStorage.setItem(LS_REVISIT, JSON.stringify([]));
             localStorage.setItem(LS_ACTIVATED_AT, serverActivatedAt.toString());
@@ -229,20 +228,29 @@ const AssessmentPage = () => {
           return;
         }
 
-        // Calculate current absolute remaining time
+        // Sync total duration if instructor changes it, OR force reset if assessment is restarted
         if (aRes.data.timer) {
           const serverActivatedAt = aRes.data.activatedAt ? new Date(aRes.data.activatedAt).getTime() : 0;
-          const totalDurationSeconds = aRes.data.timer * 60;
-          const now = Date.now();
-          const absoluteRemaining = Math.max(0, totalDurationSeconds - Math.floor((now - serverActivatedAt) / 1000));
+          const currentTotalSeconds = aRes.data.timer * 60;
+          const savedActivatedAt = localStorage.getItem(LS_ACTIVATED_AT);
 
+          // 1. Force Reset if instructor stopped and restarted the session
+          if (savedActivatedAt && parseInt(savedActivatedAt, 10) !== serverActivatedAt) {
+            setTimer(currentTotalSeconds);
+            localStorage.setItem(LS_TIMER, currentTotalSeconds);
+            localStorage.setItem(LS_ACTIVATED_AT, serverActivatedAt.toString());
+            toast("⚠️ Instructor has restarted the assessment. Progress reset.", { icon: "🔄" });
+            return;
+          }
+
+          // 2. Adjust if instructor changed the total duration mid-test
+          // (We use a very loose check here since each student has their own relative clock)
+          // Only sync if the student's current timer is somehow higher than the new total
           const currentLocalTimer = parseInt(localStorage.getItem(LS_TIMER), 10);
-
-          // If the difference is significant (admin extended it or local lag > 30s), resync
-          if (Math.abs(absoluteRemaining - currentLocalTimer) > 30) {
-            setTimer(absoluteRemaining);
-            localStorage.setItem(LS_TIMER, absoluteRemaining);
-            toast("🕒 Session timer synchronized with instructor settings.", { icon: "ℹ️" });
+          if (currentLocalTimer > currentTotalSeconds) {
+            setTimer(currentTotalSeconds);
+            localStorage.setItem(LS_TIMER, currentTotalSeconds);
+            toast("🕒 Instructor has reduced the session timer.", { icon: "ℹ️" });
           }
         }
       } catch (err) {
