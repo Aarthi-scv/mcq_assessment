@@ -143,6 +143,37 @@ const MultiSelect = ({
           </div>
         </>
       )}
+      {/* ===== DELETE CONFIRMATION MODAL ===== */}
+      {deleteConfirm.show && (
+        <div className="modal-overlay" style={{ zIndex: 10000 }}>
+          <div className="modal-content fade-in" style={{ maxWidth: "400px", textAlign: "center", padding: "2rem" }}>
+            <div className="mb-4" style={{ color: "#ef4444", background: "rgba(239, 68, 68, 0.1)", width: "60px", height: "60px", borderRadius: "50%", display: "flex", alignItems: "center", justifyCenter: "center", margin: "0 auto" }}>
+              <AlertCircle size={32} style={{ display: "block", margin: "auto" }} />
+            </div>
+            <h2 className="mb-2">Confirm Delete</h2>
+            <p className="text-secondary mb-6" style={{ fontSize: "0.9rem" }}>
+              Are you sure you want to delete <strong>"{deleteConfirm.title}"</strong>?
+              This will also permanently delete all associated participant submissions.
+            </p>
+            <div className="flex gap-3">
+              <button
+                className="btn btn-secondary w-full"
+                onClick={() => setDeleteConfirm({ show: false, id: null, title: "", type: "mcq" })}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn w-full"
+                style={{ background: "#ef4444", color: "white" }}
+                onClick={() => deleteConfirm.type === "mcq" ? confirmDeleteModule() : confirmDeleteCodingModule()}
+              >
+                Yes, Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
@@ -177,8 +208,10 @@ const AdminDashboard = () => {
   const [newQForm, setNewQForm] = useState({
     qn: "", questionType: "plain", optionType: "multiple",
     optionA: "", optionB: "", optionC: "", optionD: "",
-    correctAnswer: "A", explanation: ""
   });
+
+  // Delete Confirmation State
+  const [deleteConfirm, setDeleteConfirm] = useState({ show: false, id: null, title: "", type: "mcq" });
 
   // Auth check on mount
   useEffect(() => {
@@ -449,12 +482,17 @@ const AdminDashboard = () => {
     } catch { toast.error("Failed to update coding module"); }
   };
 
-  const deleteCodingModule = async (id, title) => {
-    if (!window.confirm(`Delete "${title}" and all its submissions?`)) return;
+  const deleteCodingModule = (id, title) => {
+    setDeleteConfirm({ show: true, id, title, type: "coding" });
+  };
+
+  const confirmDeleteCodingModule = async () => {
+    const { id } = deleteConfirm;
     try {
       await axios.delete(`${API_URL}/coding-modules/${id}`, getAdminHeaders());
       setCodingModules(prev => prev.filter(m => m._id !== id));
       toast.success("Coding module deleted");
+      setDeleteConfirm({ show: false, id: null, title: "", type: "mcq" });
     } catch { toast.error("Failed to delete coding module"); }
   };
 
@@ -537,10 +575,12 @@ const AdminDashboard = () => {
   };
 
   // Delete Module
-  const deleteModule = async (id, topicName) => {
-    if (!window.confirm(`Are you sure you want to delete "${topicName}"? This will also delete all associated submissions.`)) {
-      return;
-    }
+  const deleteModule = (id, topicName) => {
+    setDeleteConfirm({ show: true, id, title: topicName, type: "mcq" });
+  };
+
+  const confirmDeleteModule = async () => {
+    const { id } = deleteConfirm;
     try {
       await axios.delete(`${API_URL}/modules/${id}`, getAdminHeaders());
       toast.success("Module deleted successfully");
@@ -548,6 +588,7 @@ const AdminDashboard = () => {
       if (viewModule && viewModule._id === id) {
         setViewModule(null);
       }
+      setDeleteConfirm({ show: false, id: null, title: "", type: "mcq" });
     } catch (err) {
       toast.error("Failed to delete module");
     }
@@ -1092,6 +1133,22 @@ const AdminDashboard = () => {
                         </button>
                       )}
                     </div>
+
+                    {/* Requirement: Delete Button in Active Training Modules */}
+                    <button
+                      className="btn"
+                      style={{
+                        background: "rgba(239, 68, 68, 0.12)",
+                        color: "#f87171",
+                        border: "1px solid rgba(239, 68, 68, 0.25)",
+                        padding: "0.6rem",
+                        borderRadius: "10px"
+                      }}
+                      onClick={() => deleteModule(module._id, module.topicName)}
+                      title="Delete Module"
+                    >
+                      <Trash2 size={18} />
+                    </button>
                   </div>
                 </div>
               ))
