@@ -51,34 +51,34 @@ const CandidateDashboard = () => {
     // ── Auto-poll every 5 s for an active assessment ──────────────────────
     setIsPolling(true);
     pollingInterval.current = setInterval(async () => {
-      // Stop polling once we have an active module already
-      if (activeModuleRef.current) {
-        clearInterval(pollingInterval.current);
-        setIsPolling(false);
-        return;
-      }
       try {
         const res = await axios.get(
           `${API_URL}/active-assessment/${batchRef.current}`
         );
         if (res.data && res.data._id) {
+          // If a NEW module appeared or an existing one changed, update it
+          if (!activeModuleRef.current || activeModuleRef.current._id !== res.data._id) {
+            toast("🚀 Your assessment is now live! Click to begin.", {
+              duration: 8000,
+              style: {
+                background: "#0f172a",
+                color: "#fff",
+                border: "1px solid var(--primary-color)",
+                borderRadius: "10px",
+              },
+            });
+          }
           activeModuleRef.current = res.data;
           setActiveModule(res.data);
-          clearInterval(pollingInterval.current);
-          setIsPolling(false);
-          // Notify candidate
-          toast("🚀 Your assessment is now live! Click to begin.", {
-            duration: 8000,
-            style: {
-              background: "#0f172a",
-              color: "#fff",
-              border: "1px solid var(--primary-color)",
-              borderRadius: "10px",
-            },
-          });
+        } else {
+          // No active module (admin might have stopped it)
+          activeModuleRef.current = null;
+          setActiveModule(null);
         }
       } catch {
-        // No active session yet — keep waiting silently
+        // No active session yet
+        activeModuleRef.current = null;
+        setActiveModule(null);
       }
     }, 5000); // poll every 5 seconds
 
@@ -138,6 +138,24 @@ const CandidateDashboard = () => {
     localStorage.removeItem("candidateUser");
     localStorage.removeItem("candidateToken");
     navigate("/login");
+  };
+
+  const isReportAvailable = (submittedAt) => {
+    if (!submittedAt) return false;
+    const submissionTime = new Date(submittedAt).getTime();
+    const currentTime = new Date().getTime();
+    const oneHourInMs = 60 * 60 * 1000;
+    return currentTime - submissionTime >= oneHourInMs;
+  };
+
+  const getWaitMessage = (submittedAt) => {
+    const submissionTime = new Date(submittedAt).getTime();
+    const currentTime = new Date().getTime();
+    const oneHourInMs = 60 * 60 * 1000;
+    const diff = oneHourInMs - (currentTime - submissionTime);
+    if (diff <= 0) return null;
+    const mins = Math.ceil(diff / (60 * 1000));
+    return `Available in ${mins}m`;
   };
 
   const startAssessment = () => {
@@ -216,13 +234,22 @@ const CandidateDashboard = () => {
                         {sub.score} Pts
                       </span>
                     </div>
-                    <button
-                      className="btn btn-secondary w-full text-xs"
-                      style={{ padding: "0.4rem" }}
-                      onClick={() => navigate(`/assessment-report/${sub._id}`)}
-                    >
-                      View Report
-                    </button>
+                    {isReportAvailable(sub.submittedAt) ? (
+                      <button
+                        className="btn btn-secondary w-full text-xs"
+                        style={{ padding: "0.4rem" }}
+                        onClick={() => navigate(`/assessment-report/${sub._id}`)}
+                      >
+                        View Report
+                      </button>
+                    ) : (
+                      <div
+                        className="p-1 px-2 bg-white/5 border border-white/5 rounded text-secondary italic text-center"
+                        style={{ fontSize: "10px" }}
+                      >
+                        {getWaitMessage(sub.submittedAt)}
+                      </div>
+                    )}
                   </div>
                 ))
               ) : (
@@ -322,17 +349,25 @@ const CandidateDashboard = () => {
                       Assessment data has been synchronized and locked.
                     </p>
                   </div>
-                  <button
-                    className="btn btn-secondary w-full flex items-center justify-center gap-2 text-4xl"
-                    onClick={() => {
-                      const sub = submissions.find(
-                        (s) => s.moduleId === activeModule._id,
-                      );
-                      if (sub) navigate(`/assessment-report/${sub._id}`);
-                    }}
-                  >
-                    <FileText size={18} /> View Detailed Assessment Report
-                  </button>
+                  {(() => {
+                    const sub = submissions.find((s) => s.moduleId === activeModule._id);
+                    if (!sub) return null;
+                    const available = isReportAvailable(sub.submittedAt);
+                    return available ? (
+                      <button
+                        className="btn btn-secondary w-full flex items-center justify-center gap-2"
+                        style={{ fontSize: "0.85rem" }}
+                        onClick={() => navigate(`/assessment-report/${sub._id}`)}
+                      >
+                        <FileText size={18} /> View Detailed Assessment Report
+                      </button>
+                    ) : (
+                      <div className="p-3 bg-white/5 border border-white/10 rounded-xl text-center text-secondary text-sm">
+                        <Clock size={14} style={{ display: "inline", marginRight: "6px" }} />
+                        Detailed report will be unlocked {getWaitMessage(sub.submittedAt).toLowerCase()}
+                      </div>
+                    );
+                  })()}
                 </div>
               ) : (
                 <button

@@ -34,9 +34,6 @@ const Home = () => (
       <Link to="/control-center" className="btn btn-secondary landing-btn">
         <Terminal size={20} /> Control Center
       </Link>
-      <Link to="/compiler" className="btn btn-secondary landing-btn" style={{ background: "rgba(129,140,248,0.1)", borderColor: "rgba(129,140,248,0.25)", color: "#818cf8" }}>
-        <Code2 size={20} /> C Lab
-      </Link>
     </div>
 
     <div className="grid gap-8 mt-20 features-grid">

@@ -150,16 +150,45 @@ const AssessmentReport = () => {
   useEffect(() => {
     const fetchReport = async () => {
       try {
+        const isAdmin = !!localStorage.getItem("adminToken");
         const res = await axios.get(`${API_URL}/assessment-report/${submissionId}`);
-        setReportData(res.data);
+        const data = res.data;
+
+        // ── 1-Hour Security Check for Candidates ──────────────────────────
+        if (!isAdmin && data.submittedAt) {
+          const submissionTime = new Date(data.submittedAt).getTime();
+          const currentTime = new Date().getTime();
+          const oneHourInMs = 60 * 60 * 1000;
+          if (currentTime - submissionTime < oneHourInMs) {
+            toast.error("Report is locked for security. Please wait 1 hour after submission.");
+            navigate("/candidate-dashboard");
+            return;
+          }
+        }
+
+        setReportData(data);
         setReportType("mcq");
         setLoading(false);
       } catch (err) {
         if (err.response?.status === 404) {
           // Might be a coding submission — try the coding report endpoint
           try {
+            const isAdmin = !!localStorage.getItem("adminToken");
             const res2 = await axios.get(`${API_URL}/coding-report/${submissionId}`);
-            setReportData(res2.data);
+            const data2 = res2.data;
+
+            if (!isAdmin && data2.submittedAt) {
+              const submissionTime = new Date(data2.submittedAt).getTime();
+              const currentTime = new Date().getTime();
+              const oneHourInMs = 60 * 60 * 1000;
+              if (currentTime - submissionTime < oneHourInMs) {
+                toast.error("Coding report is locked for 1 hour after submission.");
+                navigate("/candidate-dashboard");
+                return;
+              }
+            }
+
+            setReportData(data2);
             setReportType("coding");
             setLoading(false);
             return;
@@ -172,7 +201,7 @@ const AssessmentReport = () => {
       }
     };
     fetchReport();
-  }, [submissionId]);
+  }, [submissionId, navigate]);
 
   if (loading) {
     return (

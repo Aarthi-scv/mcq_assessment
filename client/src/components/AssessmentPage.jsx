@@ -19,10 +19,11 @@ const LS_ANSWERS = "mcq_answers";
 const LS_TIMER = "mcq_timer";
 const LS_REVISIT = "mcq_revisit";
 const LS_QUESTION_ORDER = "mcq_question_order"; // persisted shuffle order
+const LS_ACTIVATED_AT = "mcq_activated_at";   // track session instance
 
 /** Remove every session key from localStorage after a successful submission */
 const clearSession = () => {
-  [LS_MODULE_ID, LS_ANSWERS, LS_TIMER, LS_REVISIT, LS_QUESTION_ORDER].forEach(
+  [LS_MODULE_ID, LS_ANSWERS, LS_TIMER, LS_REVISIT, LS_QUESTION_ORDER, LS_ACTIVATED_AT].forEach(
     (k) => localStorage.removeItem(k)
   );
 };
@@ -173,15 +174,26 @@ const AssessmentPage = () => {
 
         if (aRes.data && aRes.data.timer) {
           const savedTimer = parseInt(localStorage.getItem(LS_TIMER), 10);
-          // On a FRESH start (no localStorage timer) → always use server value
-          // On a REFRESH (savedTimer exists & belongs to same module) → restore it
           const savedModuleId = localStorage.getItem(LS_MODULE_ID);
-          const isSameSession = savedTimer > 0 && savedModuleId === moduleId;
-          const resolvedTimer = isSameSession ? savedTimer : aRes.data.timer * 60;
-          setTimer(resolvedTimer);
-          if (!isSameSession) {
-            // Write the freshly resolved timer so the tick loop picks it up correctly
-            localStorage.setItem(LS_TIMER, resolvedTimer);
+          const savedActivatedAt = localStorage.getItem(LS_ACTIVATED_AT);
+          const serverActivatedAt = aRes.data.activatedAt ? new Date(aRes.data.activatedAt).getTime() : 0;
+
+          // A session is considered "resumable" only if it's the same module AND same activation instance
+          const isSameInstance = savedActivatedAt && parseInt(savedActivatedAt, 10) === serverActivatedAt;
+          const isResumable = isSameInstance && savedTimer > 0 && savedModuleId === moduleId;
+
+          if (isResumable) {
+            setTimer(savedTimer);
+          } else {
+            // Fresh instance or admin restarted: use server timer and clear old answers
+            const freshTimer = aRes.data.timer * 60;
+            setTimer(freshTimer);
+            setAnswers({});
+            setRevisitWork(new Set());
+            localStorage.setItem(LS_TIMER, freshTimer);
+            localStorage.setItem(LS_ANSWERS, JSON.stringify({}));
+            localStorage.setItem(LS_REVISIT, JSON.stringify([]));
+            localStorage.setItem(LS_ACTIVATED_AT, serverActivatedAt.toString());
           }
           setTimerReady(true);
         } else {
@@ -201,6 +213,40 @@ const AssessmentPage = () => {
     };
 
     fetchData();
+
+    // ── 1.5 Sync with admin (polling every 10s) ─────────────────────────────
+    const syncInterval = setInterval(async () => {
+      try {
+        const userData = JSON.parse(localStorage.getItem("candidateUser"));
+        const aRes = await axios.get(`${API_URL}/active-assessment/${userData.batch}`);
+
+        if (!aRes.data || !aRes.data._id || aRes.data._id !== moduleId) {
+          toast.error("This assessment session has been terminated by the instructor.");
+          clearSession();
+          navigate("/candidate-dashboard");
+          return;
+        }
+
+        // If server timer has changed significantly (e.g. admin extended it), update local timer
+        if (aRes.data.timer) {
+          const serverTimerSeconds = aRes.data.timer * 60;
+          const currentLocalTimer = parseInt(localStorage.getItem(LS_TIMER), 10);
+
+          // If the difference is more than 30 seconds (to avoid jitter), sync it
+          if (Math.abs(serverTimerSeconds - currentLocalTimer) > 30) {
+            setTimer(serverTimerSeconds);
+            localStorage.setItem(LS_TIMER, serverTimerSeconds);
+            toast("🕒 Instructor has updated the session timer.", { icon: "ℹ️" });
+          }
+        }
+      } catch (err) {
+        // Silently fail polling
+      }
+    }, 10000);
+
+    return () => {
+      clearInterval(syncInterval);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

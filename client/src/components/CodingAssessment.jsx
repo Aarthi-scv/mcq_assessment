@@ -124,10 +124,19 @@ export default function CodingAssessment() {
 
         (async () => {
             try {
+                const res = await axios.get(`${API_URL}/active-coding-assessment/${user.batch}`);
+                const mod = res.data;
+                moduleRef.current = mod;
+
                 const saved = localStorage.getItem(LS_KEY);
+                const serverActivatedAt = mod.activatedAt ? new Date(mod.activatedAt).getTime() : 0;
+
                 if (saved) {
                     const s = JSON.parse(saved);
-                    if (s.moduleId === moduleId) {
+                    // Check if existing session belongs to same moduleId AND same activation instance
+                    const isSameInstance = s.activatedAt && parseInt(s.activatedAt) === serverActivatedAt;
+
+                    if (s.moduleId === moduleId && isSameInstance) {
                         setModule(s.module);
                         moduleRef.current = s.module;
                         setCodes(s.codes);
@@ -136,17 +145,24 @@ export default function CodingAssessment() {
                         setTimeLeft(s.timeLeft);
                         setLoading(false);
                         return;
+                    } else {
+                        // Stale session or different module - clear it
+                        localStorage.removeItem(LS_KEY);
                     }
                 }
-                const res = await axios.get(`${API_URL}/active-coding-assessment/${user.batch}`);
-                const mod = res.data;
-                moduleRef.current = mod;
+
                 const initCodes = mod.questions.map(() => DEFAULT_CODE);
                 const initResults = mod.questions.map(q => ({ results: null, score: 0, maxScore: q.testCases.length }));
                 setModule(mod);
                 setCodes(initCodes);
                 setResults(initResults);
-                setTimeLeft((mod.timer || 60) * 60);
+                const freshTimer = (mod.timer || 60) * 60;
+                setTimeLeft(freshTimer);
+                // Save initial state with activatedAt
+                localStorage.setItem(LS_KEY, JSON.stringify({
+                    moduleId, module: mod, codes: initCodes, results: initResults,
+                    qIndex: 0, timeLeft: freshTimer, activatedAt: serverActivatedAt
+                }));
             } catch {
                 toast.error("Could not load coding assessment. Check your batch assignment.");
                 navigate("/candidate-dashboard");
@@ -154,6 +170,37 @@ export default function CodingAssessment() {
                 setLoading(false);
             }
         })();
+
+        // ── 1.5 Sync with admin (polling every 10s) ─────────────────────────────
+        const syncInterval = setInterval(async () => {
+            try {
+                const aRes = await axios.get(`${API_URL}/active-coding-assessment/${user.batch}`);
+
+                if (!aRes.data || !aRes.data._id || aRes.data._id !== moduleId) {
+                    toast.error("This coding session has been terminated by the instructor.");
+                    localStorage.removeItem(LS_KEY);
+                    navigate("/candidate-dashboard");
+                    return;
+                }
+
+                // If server timer has changed significantly
+                if (aRes.data.timer) {
+                    const serverTimerSeconds = aRes.data.timer * 60;
+                    // Note: We don't have a simple LS_TIMER here like in MCQ, it's inside LS_KEY
+                    const saved = JSON.parse(localStorage.getItem(LS_KEY) || "{}");
+                    const currentLocalTimer = saved.timeLeft || timeLeft;
+
+                    if (Math.abs(serverTimerSeconds - currentLocalTimer) > 30) {
+                        setTimeLeft(serverTimerSeconds);
+                        toast("🕒 Instructor has updated the session timer.", { icon: "ℹ️" });
+                    }
+                }
+            } catch (err) {
+                // Silently fail polling
+            }
+        }, 10000);
+
+        return () => clearInterval(syncInterval);
     }, []);
 
     // ── Keep moduleRef in sync ───────────────────────────────────────────────
