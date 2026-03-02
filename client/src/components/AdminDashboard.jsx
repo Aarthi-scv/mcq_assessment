@@ -28,6 +28,7 @@ import {
   FileSpreadsheet,
   FileDown,
   RefreshCw,
+  FileUp,
 } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -229,6 +230,10 @@ const AdminDashboard = () => {
     });
   }, [submissions, analyticsFilterBatch, analyticsFilterTopic, modules]);
 
+  const filteredCodingAnalytics = React.useMemo(() => {
+    return codingAnalytics.filter(s => !codingAnalyticsBatch || s.batch === codingAnalyticsBatch);
+  }, [codingAnalytics, codingAnalyticsBatch]);
+
   // Unique topic names derived from loaded modules (for the filter dropdown)
   const topicOptions = React.useMemo(
     () => [...new Set(modules.map((m) => m.topicName))].sort(),
@@ -326,6 +331,78 @@ const AdminDashboard = () => {
     a.href = url; a.download = `${exportLabel()}.doc`;
     a.click(); URL.revokeObjectURL(url);
     toast.success("Word document exported!");
+  };
+
+  // --- Coding Export Helpers ---
+  const CODING_HEADERS = ["#", "Candidate Name", "Batch", "Module", "Total Score", "Max Score", "Date"];
+
+  const getCodingTableRows = () =>
+    filteredCodingAnalytics.map((s, i) => {
+      const mod = codingModules.find(m => m._id === s.moduleId?.toString() || m._id === s.moduleId);
+      return [
+        `#${i + 1}`,
+        s.userName,
+        s.batch,
+        mod?.title || s.moduleId || "—",
+        s.totalScore ?? s.score ?? 0,
+        s.maxScore ?? (s.questions?.length * 3) ?? 0,
+        new Date(s.submittedAt).toLocaleDateString(),
+      ];
+    });
+
+  const exportCodingPDF = () => {
+    if (!filteredCodingAnalytics.length) return toast.error("No data to export.");
+    const doc = new jsPDF();
+    doc.setFontSize(14);
+    doc.text("Coding Assessment Analytics Report", 14, 15);
+    doc.setFontSize(9);
+    doc.text(`Batch: ${codingAnalyticsBatch || "All Batches"}`, 14, 22);
+    doc.text(`Exported on ${new Date().toLocaleString()}`, 14, 27);
+    autoTable(doc, {
+      head: [CODING_HEADERS],
+      body: getCodingTableRows(),
+      startY: 33,
+      styles: { fontSize: 8, cellPadding: 3 },
+      headStyles: { fillColor: [0, 180, 200], textColor: 255, fontStyle: "bold" },
+    });
+    doc.save(`Coding_Analytics_${codingAnalyticsBatch || "All"}_${new Date().toISOString().split('T')[0]}.pdf`);
+    toast.success("Coding PDF exported!");
+  };
+
+  const exportCodingExcel = () => {
+    if (!filteredCodingAnalytics.length) return toast.error("No data to export.");
+    const ws = XLSX.utils.aoa_to_sheet([CODING_HEADERS, ...getCodingTableRows()]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Coding Analytics");
+    XLSX.writeFile(wb, `Coding_Analytics_${codingAnalyticsBatch || "All"}_${new Date().toISOString().split('T')[0]}.xlsx`);
+    toast.success("Coding Excel sheet exported!");
+  };
+
+  const exportCodingDocs = () => {
+    if (!filteredCodingAnalytics.length) return toast.error("No data to export.");
+    const rows = getCodingTableRows();
+    const thStyle = `style="background:#00b4c8;color:#fff;padding:6px 10px;border:1px solid #ccc;text-align:left;"`;
+    const tdStyle = `style="padding:5px 10px;border:1px solid #ddd;"`;
+    const html = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+      <head><meta charset="utf-8"><title>Coding Analytics</title></head>
+      <body>
+        <h2 style="font-family:Arial">Coding Assessment Analytics Report</h2>
+        <p style="font-family:Arial;font-size:11px;color:#555">Batch: ${codingAnalyticsBatch || "All Batches"}</p>
+        <p style="font-family:Arial;font-size:11px">Exported: ${new Date().toLocaleString()}</p>
+        <table style="border-collapse:collapse;font-family:Arial;font-size:11px;width:100%">
+          <thead><tr>${CODING_HEADERS.map(h => `<th ${thStyle}>${h}</th>`).join("")}</tr></thead>
+          <tbody>${rows.map((row, ri) =>
+      `<tr style="background:${ri % 2 === 0 ? "#f9f9f9" : "#fff"}"><${row.map(cell => `<td ${tdStyle}>${cell}</td>`).join("")}</tr>`
+    ).join("")}</tbody>
+        </table>
+      </body></html>`;
+    const blob = new Blob([html], { type: "application/msword;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `Coding_Analytics_${codingAnalyticsBatch || "All"}_${new Date().toISOString().split('T')[0]}.doc`;
+    a.click(); URL.revokeObjectURL(url);
+    toast.success("Coding Word document exported!");
   };
 
   // Fetch Modules & Submissions
@@ -549,6 +626,116 @@ const AdminDashboard = () => {
     } catch (err) {
       toast.error("Failed to add question");
     }
+  };
+
+  const handleBatchUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const text = event.target.result;
+      const parsedQuestions = parseUploadedFile(text);
+      if (parsedQuestions.length > 0) {
+        try {
+          await axios.post(
+            `${API_URL}/modules/${viewModule._id}/questions/batch`,
+            { questions: parsedQuestions },
+            getAdminHeaders()
+          );
+          toast.success(`${parsedQuestions.length} questions added successfully!`);
+          fetchModules();
+          const moduleRes = await axios.get(`${API_URL}/modules`, getAdminHeaders());
+          const updated = moduleRes.data.find(m => m._id === viewModule._id);
+          if (updated) setViewModule(updated);
+        } catch (err) {
+          toast.error("Failed to upload batch questions");
+        }
+      } else {
+        toast.error("No valid questions found in the file.");
+      }
+      e.target.value = ""; // Reset file input
+    };
+    reader.readAsText(file);
+  };
+
+  const parseUploadedFile = (text) => {
+    const questions = [];
+    const chunks = text.split(/===QUESTION START===/g);
+
+    chunks.forEach(chunk => {
+      if (!chunk.trim()) return;
+      const q = {
+        qn: "",
+        codeSnippet: "",
+        questionType: "plain",
+        optionType: "multiple",
+        optionA: "",
+        optionB: "",
+        optionC: "",
+        optionD: "",
+        correctAnswer: "A",
+        explanation: "",
+      };
+
+      const content = chunk.split(/===QUESTION END===/)[0].trim();
+      const lines = content.split('\n');
+
+      let currentSection = "";
+      let questionLines = [];
+      let codeLines = [];
+
+      lines.forEach(line => {
+        const trimmed = line.trim();
+        const upperTrimmed = trimmed.toUpperCase();
+
+        if (upperTrimmed.startsWith("QN_NO:")) {
+          // Ignore
+        } else if (upperTrimmed.startsWith("TYPE:")) {
+          // Ignore
+        } else if (upperTrimmed.startsWith("QUESTION:")) {
+          currentSection = "QUESTION";
+          const firstPart = line.substring(line.indexOf(':') + 1).trim();
+          if (firstPart) questionLines.push(firstPart);
+        } else if (upperTrimmed.startsWith("CODE:")) {
+          currentSection = "CODE";
+          q.questionType = "code";
+          const firstPart = line.substring(line.indexOf(':') + 1).trim();
+          if (firstPart) codeLines.push(firstPart);
+        } else if (upperTrimmed.startsWith("OPTIONS:")) {
+          currentSection = "OPTIONS";
+        } else if (upperTrimmed.startsWith("ANSWER:")) {
+          currentSection = "ANSWER";
+          const ansLetter = trimmed.substring(trimmed.indexOf(':') + 1).trim().charAt(0).toUpperCase();
+          if (['A', 'B', 'C', 'D'].includes(ansLetter)) {
+            q.correctAnswer = ansLetter;
+          }
+        } else if (upperTrimmed.startsWith("EXPLANATION:")) {
+          currentSection = "EXPLANATION";
+          const firstPart = line.substring(line.indexOf(':') + 1).trim();
+          if (firstPart) q.explanation = firstPart;
+        } else {
+          if (currentSection === "QUESTION") {
+            questionLines.push(line);
+          } else if (currentSection === "CODE") {
+            codeLines.push(line);
+          } else if (currentSection === "OPTIONS") {
+            if (trimmed.startsWith("A.")) q.optionA = trimmed.replace(/^A\.\s*/, "").trim();
+            else if (trimmed.startsWith("B.")) q.optionB = trimmed.replace(/^B\.\s*/, "").trim();
+            else if (trimmed.startsWith("C.")) q.optionC = trimmed.replace(/^C\.\s*/, "").trim();
+            else if (trimmed.startsWith("D.")) q.optionD = trimmed.replace(/^D\.\s*/, "").trim();
+          } else if (currentSection === "EXPLANATION") {
+            q.explanation += (q.explanation ? "\n" : "") + line;
+          }
+        }
+      });
+
+      q.qn = questionLines.join('\n').trim();
+      q.codeSnippet = codeLines.join('\n').trim();
+
+      if (q.qn) questions.push(q);
+    });
+    return questions;
   };
 
   // Get questions from module (handles both structures)
@@ -1103,7 +1290,7 @@ const AdminDashboard = () => {
       </div>
 
       {/* ===== CODING SUBMISSIONS ANALYTICS ===== */}
-      <div className="dashboard-section">
+      <div className="container">
         <div className="section-header mb-6">
           <div className="flex justify-between items-center" style={{ flexWrap: "wrap", gap: "0.75rem" }}>
             <div>
@@ -1111,6 +1298,32 @@ const AdminDashboard = () => {
               <p className="text-secondary text-sm mt-1">C programming submission results per candidate</p>
             </div>
             <div className="flex items-center gap-3">
+              <div className="flex gap-2">
+                <button
+                  className="btn btn-sm"
+                  onClick={exportCodingPDF}
+                  title="Export filtered data as PDF"
+                  style={{ background: "rgba(239,68,68,0.12)", color: "#f87171", border: "1px solid rgba(239,68,68,0.25)", display: "flex", alignItems: "center", gap: "6px" }}
+                >
+                  <FileDown size={14} /> PDF
+                </button>
+                <button
+                  className="btn btn-sm"
+                  onClick={exportCodingExcel}
+                  title="Export filtered data as Excel / Google Sheets"
+                  style={{ background: "rgba(34,197,94,0.12)", color: "#4ade80", border: "1px solid rgba(34,197,94,0.25)", display: "flex", alignItems: "center", gap: "6px" }}
+                >
+                  <FileSpreadsheet size={14} /> Sheets
+                </button>
+                <button
+                  className="btn btn-sm"
+                  onClick={exportCodingDocs}
+                  title="Export filtered data as Word Document"
+                  style={{ background: "rgba(59,130,246,0.12)", color: "#60a5fa", border: "1px solid rgba(59,130,246,0.25)", display: "flex", alignItems: "center", gap: "6px" }}
+                >
+                  <FileText size={14} /> Docs
+                </button>
+              </div>
               <select
                 value={codingAnalyticsBatch}
                 onChange={e => setCodingAnalyticsBatch(e.target.value)}
@@ -1145,11 +1358,10 @@ const AdminDashboard = () => {
               </tr>
             </thead>
             <tbody>
-              {codingAnalytics.length === 0 ? (
+              {filteredCodingAnalytics.length === 0 ? (
                 <tr><td colSpan="7" className="text-center py-10 text-secondary">No coding submissions yet.</td></tr>
               ) : (
-                codingAnalytics
-                  .filter(s => !codingAnalyticsBatch || s.batch === codingAnalyticsBatch)
+                filteredCodingAnalytics
                   .map((s, i) => {
                     const mod = codingModules.find(m => m._id === s.moduleId?.toString() || m._id === s.moduleId);
                     return (
@@ -1353,13 +1565,29 @@ const AdminDashboard = () => {
               {/* ── Add Question Panel ── */}
               <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: "1rem", marginTop: "0.5rem" }}>
                 {!addingQuestion ? (
-                  <button
-                    className="btn btn-primary"
-                    style={{ width: "100%", padding: "0.55rem" }}
-                    onClick={() => setAddingQuestion(true)}
-                  >
-                    <PlusCircle size={16} /> Add Question
-                  </button>
+                  <div className="flex gap-2">
+                    <input
+                      type="file"
+                      id="batch-upload-existing"
+                      accept=".txt"
+                      onChange={handleBatchUpload}
+                      style={{ display: "none" }}
+                    />
+                    <button
+                      className="btn btn-secondary"
+                      style={{ flex: 1, padding: "0.55rem", border: "1px dashed var(--primary-color)", color: "var(--primary-color)" }}
+                      onClick={() => document.getElementById('batch-upload-existing').click()}
+                    >
+                      <FileUp size={16} /> Batch Upload (.txt)
+                    </button>
+                    <button
+                      className="btn btn-primary"
+                      style={{ flex: 1, padding: "0.55rem" }}
+                      onClick={() => setAddingQuestion(true)}
+                    >
+                      <PlusCircle size={16} /> Add Question
+                    </button>
+                  </div>
                 ) : (
                   <div style={{ background: "rgba(0,0,0,0.25)", borderRadius: "12px", padding: "1rem" }}>
                     <p style={{ fontWeight: 700, fontSize: "0.9rem", marginBottom: "0.75rem" }}>New Question</p>

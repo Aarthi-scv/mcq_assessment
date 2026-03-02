@@ -465,6 +465,69 @@ router.post('/modules/:moduleId/questions', authenticateAdmin, async (req, res) 
   }
 });
 
+// Append batch questions to an existing module
+router.post('/modules/:moduleId/questions/batch', authenticateAdmin, async (req, res) => {
+  try {
+    const { moduleId } = req.params;
+    const { questions } = req.body; // Array of questions
+
+    if (!questions || !Array.isArray(questions)) {
+      return res.status(400).json({ message: 'Invalid questions format' });
+    }
+
+    const module = await AssessmentModule.findById(moduleId);
+    if (!module) {
+      return res.status(404).json({ message: 'Module not found' });
+    }
+
+    questions.forEach((q, i) => {
+      const isTrueFalse = q.optionType === 'truefalse';
+      const opts = isTrueFalse ? ['True', 'False'] : [q.optionA, q.optionB, q.optionC, q.optionD];
+      const answerValue = isTrueFalse
+        ? (q.correctAnswer === 'A' ? 'True' : 'False')
+        : (q[`option${q.correctAnswer}`] || q.optionA);
+
+      const qIndex = (module.module?.quiz?.length || 0) + 1;
+
+      const newQuizQ = {
+        id: `q${qIndex}`,
+        qn: q.qn,
+        codeSnippet: q.codeSnippet || '',
+        questionType: q.questionType || 'plain',
+        optionType: q.optionType || 'multiple',
+        questionImage: null,
+        options: opts,
+        answer: answerValue,
+        explanation: q.explanation || ''
+      };
+
+      module.module.quiz.push(newQuizQ);
+      module.questions.push({
+        questionText: q.qn,
+        codeSnippet: q.codeSnippet || '',
+        questionType: q.questionType || 'plain',
+        optionType: q.optionType || 'multiple',
+        questionImage: null,
+        options: {
+          A: opts[0] || '',
+          B: opts[1] || '',
+          C: opts[2] || '',
+          D: opts[3] || ''
+        },
+        correctAnswer: ['A', 'B', 'C', 'D'][opts.indexOf(answerValue)] || q.correctAnswer || 'A',
+        correctValue: answerValue,
+        explanation: q.explanation || ''
+      });
+    });
+
+    await module.save();
+    res.json({ message: `${questions.length} questions added successfully`, module });
+  } catch (err) {
+    console.error('Batch add question error:', err);
+    res.status(500).json({ message: 'Error adding questions' });
+  }
+});
+
 // Update a single question in a module
 router.put('/modules/:moduleId/questions/:questionId', authenticateAdmin, async (req, res) => {
   try {

@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import toast from "react-hot-toast";
-import { PlusCircle, Minus, ArrowLeft, Code2, Eye } from "lucide-react";
+import { PlusCircle, Minus, ArrowLeft, Code2, Eye, FileUp } from "lucide-react";
 import CodeHighlighter from "./Assessment/CodeHighlighter";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
@@ -38,6 +38,109 @@ const CreateModule = () => {
 
     const [formQuestions, setFormQuestions] = useState([emptyQuestion()]);
     const [submitting, setSubmitting] = useState(false);
+
+    const parseUploadedFile = (text) => {
+        const questions = [];
+        const chunks = text.split(/===QUESTION START===/g);
+
+        chunks.forEach(chunk => {
+            if (!chunk.trim()) return;
+            const q = {
+                qn: "",
+                codeSnippet: "",
+                questionType: "plain",
+                optionType: "multiple",
+                optionA: "",
+                optionB: "",
+                optionC: "",
+                optionD: "",
+                correctAnswer: "A",
+                explanation: "",
+            };
+
+            const content = chunk.split(/===QUESTION END===/)[0].trim();
+            const lines = content.split('\n');
+
+            let currentSection = "";
+            let questionLines = [];
+            let codeLines = [];
+
+            lines.forEach(line => {
+                const trimmed = line.trim();
+                const upperTrimmed = trimmed.toUpperCase();
+
+                if (upperTrimmed.startsWith("QN_NO:")) {
+                    // Ignore QN_NO
+                } else if (upperTrimmed.startsWith("TYPE:")) {
+                    // Use TYPE if needed
+                } else if (upperTrimmed.startsWith("QUESTION:")) {
+                    currentSection = "QUESTION";
+                    const firstPart = line.substring(line.indexOf(':') + 1).trim();
+                    if (firstPart) questionLines.push(firstPart);
+                } else if (upperTrimmed.startsWith("CODE:")) {
+                    currentSection = "CODE";
+                    q.questionType = "code";
+                    const firstPart = line.substring(line.indexOf(':') + 1).trim();
+                    if (firstPart) codeLines.push(firstPart);
+                } else if (upperTrimmed.startsWith("OPTIONS:")) {
+                    currentSection = "OPTIONS";
+                } else if (upperTrimmed.startsWith("ANSWER:")) {
+                    currentSection = "ANSWER";
+                    const ansLetter = trimmed.substring(trimmed.indexOf(':') + 1).trim().charAt(0).toUpperCase();
+                    if (['A', 'B', 'C', 'D'].includes(ansLetter)) {
+                        q.correctAnswer = ansLetter;
+                    }
+                } else if (upperTrimmed.startsWith("EXPLANATION:")) {
+                    currentSection = "EXPLANATION";
+                    const firstPart = line.substring(line.indexOf(':') + 1).trim();
+                    if (firstPart) q.explanation = firstPart;
+                } else {
+                    if (currentSection === "QUESTION") {
+                        questionLines.push(line);
+                    } else if (currentSection === "CODE") {
+                        codeLines.push(line);
+                    } else if (currentSection === "OPTIONS") {
+                        if (trimmed.startsWith("A.")) q.optionA = trimmed.replace(/^A\.\s*/, "").trim();
+                        else if (trimmed.startsWith("B.")) q.optionB = trimmed.replace(/^B\.\s*/, "").trim();
+                        else if (trimmed.startsWith("C.")) q.optionC = trimmed.replace(/^C\.\s*/, "").trim();
+                        else if (trimmed.startsWith("D.")) q.optionD = trimmed.replace(/^D\.\s*/, "").trim();
+                    } else if (currentSection === "EXPLANATION") {
+                        q.explanation += (q.explanation ? "\n" : "") + line;
+                    }
+                }
+            });
+
+            q.qn = questionLines.join('\n').trim();
+            q.codeSnippet = codeLines.join('\n').trim();
+
+            if (q.qn) questions.push(q);
+        });
+        return questions;
+    };
+
+    const handleFileUpload = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const text = event.target.result;
+            const parsedQuestions = parseUploadedFile(text);
+            if (parsedQuestions.length > 0) {
+                if (formQuestions.length === 1 && !formQuestions[0].qn) {
+                    setFormQuestions(parsedQuestions);
+                } else {
+                    setFormQuestions([...formQuestions, ...parsedQuestions]);
+                }
+                toast.success(`Successfully extracted ${parsedQuestions.length} questions!`);
+            } else {
+                toast.error("No valid questions found in the file. Check file structure.");
+            }
+            // Reset input so same file can be uploaded again if needed
+            e.target.value = "";
+        };
+        reader.readAsText(file);
+    };
 
     const addQuestion = () => {
         setFormQuestions([...formQuestions, emptyQuestion()]);
@@ -370,14 +473,31 @@ const CreateModule = () => {
 
                 {/* Footer Actions */}
                 <div className="flex justify-end gap-3 mb-8">
-                    <button
-                        type="button"
-                        className="btn btn-primary"
-                        style={{ padding: "0.4rem 0.9rem", fontSize: "0.85rem" }}
-                        onClick={addQuestion}
-                    >
-                        <PlusCircle size={15} /> Add Question
-                    </button>
+                    <div className="flex gap-2">
+                        <input
+                            type="file"
+                            id="question-upload"
+                            accept=".txt"
+                            onChange={handleFileUpload}
+                            style={{ display: "none" }}
+                        />
+                        <button
+                            type="button"
+                            className="btn btn-secondary"
+                            style={{ padding: "0.4rem 0.9rem", fontSize: "0.85rem", border: "1px dashed var(--primary-color)", color: "var(--primary-color)" }}
+                            onClick={() => document.getElementById('question-upload').click()}
+                        >
+                            <FileUp size={15} /> Batch Upload (.txt)
+                        </button>
+                        <button
+                            type="button"
+                            className="btn btn-primary"
+                            style={{ padding: "0.4rem 0.9rem", fontSize: "0.85rem" }}
+                            onClick={addQuestion}
+                        >
+                            <PlusCircle size={15} /> Add Question
+                        </button>
+                    </div>
                     <button
                         type="button"
                         className="btn btn-secondary"
