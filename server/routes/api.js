@@ -1112,9 +1112,10 @@ router.post('/run-testcases', async (req, res) => {
     let out = await runCode(runOnWandbox) || await runCode(runOnJDoodle);
     if (!out) return { ...tc, actualOutput: '', passed: false, score: 0, compileError: 'Compiler unavailable', runtimeError: '' };
 
-    const actual = (out.stdout || '').trim();
-    const expected = (tc.expectedOutput || '').trim();
-    const passed = actual === expected && !out.compile_output;
+    const normalize = (str) => (str || '').toString().trim().replace(/\s+/g, ' ');
+    const actual = out.stdout || '';
+    const expected = tc.expectedOutput || '';
+    const passed = normalize(actual) === normalize(expected) && !out.compile_output;
     return {
       input: tc.input,
       expectedOutput: tc.expectedOutput,

@@ -208,6 +208,20 @@
     background: rgba(239, 68, 68, 0.16);
 }
 
+/* ── Starter Code ────────────────────────────────────────────────────────── */
+.ccm-starter-code-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+
+.ccm-starter-code-area {
+    min-height: 120px;
+    background: rgba(15, 23, 42, 0.5) !important;
+    border-color: rgba(0, 245, 255, 0.15) !important;
+}
+
 /* ── Test cases section ──────────────────────────────────────────────────── */
 .ccm-tc-section {
     border-top: 1px solid rgba(255, 255, 255, 0.05);

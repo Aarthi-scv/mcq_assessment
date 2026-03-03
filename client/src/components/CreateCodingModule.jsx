@@ -13,7 +13,11 @@ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 const BATCHES = ["ES-B2", "ES-B3", "DV-B8", "DV-B9", "DV-B10", "DV-B11", "DV-B12"];
 
 const emptyTestCase = () => ({ input: "", expectedOutput: "" });
-const emptyQuestion = () => ({ questionText: "", testCases: [emptyTestCase(), emptyTestCase(), emptyTestCase()] });
+const emptyQuestion = () => ({
+    questionText: "",
+    starterCode: "#include <stdio.h>\n\nint main() {\n    // Write your solution here\n    return 0;\n}\n",
+    testCases: [emptyTestCase(), emptyTestCase(), emptyTestCase()]
+});
 
 export default function CreateCodingModule() {
     const navigate = useNavigate();
@@ -33,8 +37,8 @@ export default function CreateCodingModule() {
     const removeQuestion = (qi) =>
         setQuestions(prev => prev.filter((_, i) => i !== qi));
 
-    const updateQuestion = (qi, val) =>
-        setQuestions(prev => prev.map((q, i) => i === qi ? { ...q, questionText: val } : q));
+    const updateQuestionField = (qi, field, val) =>
+        setQuestions(prev => prev.map((q, i) => i === qi ? { ...q, [field]: val } : q));
 
     // ── Test-case helpers ───────────────────────────────────────────────────────
     const addTestCase = (qi) =>
@@ -145,7 +149,7 @@ export default function CreateCodingModule() {
                                         rows={3}
                                         placeholder={`Describe question ${qi + 1} — e.g. "Write a C program that prints the reverse of an array of N integers."`}
                                         value={q.questionText}
-                                        onChange={e => updateQuestion(qi, e.target.value)}
+                                        onChange={e => updateQuestionField(qi, "questionText", e.target.value)}
                                     />
                                 </div>
                                 {questions.length > 1 && (
@@ -153,6 +157,20 @@ export default function CreateCodingModule() {
                                         <Trash2 size={15} />
                                     </button>
                                 )}
+                            </div>
+
+                            {/* Starter Code */}
+                            <div className="ccm-starter-code-section">
+                                <label className="ccm-tc-section-title">
+                                    <Terminal size={13} /> Starter Code (Initial editor content)
+                                </label>
+                                <textarea
+                                    className="ccm-tc-area ccm-starter-code-area"
+                                    rows={6}
+                                    placeholder="#include <stdio.h>..."
+                                    value={q.starterCode}
+                                    onChange={e => updateQuestionField(qi, "starterCode", e.target.value)}
+                                />
                             </div>
 
                             {/* Test cases */}

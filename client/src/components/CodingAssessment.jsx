@@ -153,7 +153,7 @@ export default function CodingAssessment() {
                     }
                 }
 
-                const initCodes = mod.questions.map(() => DEFAULT_CODE);
+                const initCodes = mod.questions.map(q => q.starterCode || DEFAULT_CODE);
                 const initResults = mod.questions.map(q => ({ results: null, score: 0, maxScore: q.testCases.length }));
                 setModule(mod);
                 setCodes(initCodes);

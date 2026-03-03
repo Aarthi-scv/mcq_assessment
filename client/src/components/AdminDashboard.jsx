@@ -183,6 +183,13 @@ const AdminDashboard = () => {
   // Delete Confirmation State
   const [deleteConfirm, setDeleteConfirm] = useState({ show: false, id: null, title: "", type: "mcq" });
 
+  // View Candidate Code Modal
+  const [viewCodeModal, setViewCodeModal] = useState({ show: false, submission: null });
+
+  // Export Menu State
+  const [mcqExportOpen, setMcqExportOpen] = useState(false);
+  const [codingExportOpen, setCodingExportOpen] = useState(false);
+
   // Auth check on mount
   useEffect(() => {
     const isDev = window.location.hostname === "localhost";
@@ -1134,7 +1141,7 @@ const AdminDashboard = () => {
             <h2 className="analytics-header-title">
               <Users size={24} className="text-primary" /> Performance Analytics
             </h2>
-            <div className="flex gap-2" style={{ flexWrap: "wrap" }}>
+            <div className="flex gap-2 relative" style={{ flexWrap: "wrap" }}>
               <button
                 className="btn btn-secondary btn-sm refresh-data-btn"
                 onClick={fetchSubmissions}
@@ -1142,30 +1149,33 @@ const AdminDashboard = () => {
               >
                 <RefreshCw size={14} /> Refresh
               </button>
-              <button
-                className="btn btn-sm"
-                onClick={exportPDF}
-                title="Export filtered data as PDF"
-                style={{ background: "rgba(239,68,68,0.12)", color: "#f87171", border: "1px solid rgba(239,68,68,0.25)", display: "flex", alignItems: "center", gap: "6px" }}
-              >
-                <FileDown size={14} /> PDF
-              </button>
-              <button
-                className="btn btn-sm"
-                onClick={exportExcel}
-                title="Export filtered data as Excel / Google Sheets"
-                style={{ background: "rgba(34,197,94,0.12)", color: "#4ade80", border: "1px solid rgba(34,197,94,0.25)", display: "flex", alignItems: "center", gap: "6px" }}
-              >
-                <FileSpreadsheet size={14} /> Sheets
-              </button>
-              <button
-                className="btn btn-sm"
-                onClick={exportDocs}
-                title="Export filtered data as Word Document"
-                style={{ background: "rgba(59,130,246,0.12)", color: "#60a5fa", border: "1px solid rgba(59,130,246,0.25)", display: "flex", alignItems: "center", gap: "6px" }}
-              >
-                <FileText size={14} /> Docs
-              </button>
+              <div className="relative">
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={() => setMcqExportOpen(!mcqExportOpen)}
+                  style={{ display: "flex", alignItems: "center", gap: "6px" }}
+                >
+                  <FileDown size={14} /> Export Report {mcqExportOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                </button>
+                {mcqExportOpen && (
+                  <>
+                    <div className="fixed inset-0" onClick={() => setMcqExportOpen(false)} style={{ zIndex: 10 }} />
+                    <div className="absolute right-0 mt-2 w-40 rounded-xl border border-white/10 bg-black shadow-xl" style={{ zIndex: 11, background: "#111" }}>
+                      <div className="p-1">
+                        <button onClick={() => { exportPDF(); setMcqExportOpen(false); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs text-secondary hover:bg-white/5 hover:text-white">
+                          <FileDown size={14} className="text-danger" /> PDF Document
+                        </button>
+                        <button onClick={() => { exportExcel(); setMcqExportOpen(false); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs text-secondary hover:bg-white/5 hover:text-white">
+                          <FileSpreadsheet size={14} className="text-success" /> Excel Sheet
+                        </button>
+                        <button onClick={() => { exportDocs(); setMcqExportOpen(false); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs text-secondary hover:bg-white/5 hover:text-white">
+                          <FileText size={14} className="text-primary" /> Word Document
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
 
@@ -1325,31 +1335,32 @@ const AdminDashboard = () => {
               <p className="text-secondary text-sm mt-1">C programming submission results per candidate</p>
             </div>
             <div className="flex items-center gap-3">
-              <div className="flex gap-2">
+              <div className="relative">
                 <button
-                  className="btn btn-sm"
-                  onClick={exportCodingPDF}
-                  title="Export filtered data as PDF"
-                  style={{ background: "rgba(239,68,68,0.12)", color: "#f87171", border: "1px solid rgba(239,68,68,0.25)", display: "flex", alignItems: "center", gap: "6px" }}
+                  className="btn btn-primary btn-sm"
+                  onClick={() => setCodingExportOpen(!codingExportOpen)}
+                  style={{ display: "flex", alignItems: "center", gap: "6px" }}
                 >
-                  <FileDown size={14} /> PDF
+                  <FileDown size={14} /> Export Report {codingExportOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                 </button>
-                <button
-                  className="btn btn-sm"
-                  onClick={exportCodingExcel}
-                  title="Export filtered data as Excel / Google Sheets"
-                  style={{ background: "rgba(34,197,94,0.12)", color: "#4ade80", border: "1px solid rgba(34,197,94,0.25)", display: "flex", alignItems: "center", gap: "6px" }}
-                >
-                  <FileSpreadsheet size={14} /> Sheets
-                </button>
-                <button
-                  className="btn btn-sm"
-                  onClick={exportCodingDocs}
-                  title="Export filtered data as Word Document"
-                  style={{ background: "rgba(59,130,246,0.12)", color: "#60a5fa", border: "1px solid rgba(59,130,246,0.25)", display: "flex", alignItems: "center", gap: "6px" }}
-                >
-                  <FileText size={14} /> Docs
-                </button>
+                {codingExportOpen && (
+                  <>
+                    <div className="fixed inset-0" onClick={() => setCodingExportOpen(false)} style={{ zIndex: 10 }} />
+                    <div className="absolute right-0 mt-2 w-40 rounded-xl border border-white/10 bg-black shadow-xl" style={{ zIndex: 11, background: "#111" }}>
+                      <div className="p-1">
+                        <button onClick={() => { exportCodingPDF(); setCodingExportOpen(false); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs text-secondary hover:bg-white/5 hover:text-white">
+                          <FileDown size={14} className="text-danger" /> PDF Document
+                        </button>
+                        <button onClick={() => { exportCodingExcel(); setCodingExportOpen(false); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs text-secondary hover:bg-white/5 hover:text-white">
+                          <FileSpreadsheet size={14} className="text-success" /> Excel Sheet
+                        </button>
+                        <button onClick={() => { exportCodingDocs(); setCodingExportOpen(false); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs text-secondary hover:bg-white/5 hover:text-white">
+                          <FileText size={14} className="text-primary" /> Word Document
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
               <select
                 value={codingAnalyticsBatch}
@@ -1411,7 +1422,15 @@ const AdminDashboard = () => {
                             ))}
                           </div>
                         </td>
-                        <td className="text-sm">{s.questions?.length ?? 0} Qs</td>
+                        <td className="text-sm">
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            style={{ padding: "0.25rem 0.5rem", fontSize: "0.7rem", display: "flex", alignItems: "center", gap: "4px" }}
+                            onClick={() => setViewCodeModal({ show: true, submission: s })}
+                          >
+                            <Code2 size={12} /> View Code
+                          </button>
+                        </td>
                         <td className="text-secondary">{new Date(s.submittedAt).toLocaleDateString()}</td>
                       </tr>
                     );
@@ -1753,6 +1772,40 @@ const AdminDashboard = () => {
           </div>
         </div>
       )}
+      {/* ===== VIEW CANDIDATE CODE MODAL ===== */}
+      {viewCodeModal.show && viewCodeModal.submission && (
+        <div className="modal-overlay no-scrollbar" style={{ zIndex: 9999 }}>
+          <div className="modal-content fade-in no-scrollbar" style={{ maxWidth: "900px" }}>
+            <div className="flex justify-between items-center p-3 modal-header">
+              <div>
+                <h2>Candidate Submission: {viewCodeModal.submission.userName}</h2>
+                <p className="text-secondary text-sm">
+                  Module: {codingModules.find(m => m._id === viewCodeModal.submission.moduleId?.toString() || m._id === viewCodeModal.submission.moduleId)?.title || "—"}
+                </p>
+              </div>
+              <button
+                onClick={() => setViewCodeModal({ show: false, submission: null })}
+                className="text-secondary close-modal-btn"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            <div className="modal-form-body" style={{ maxHeight: "75vh", overflowY: "auto", padding: "1.5rem" }}>
+              {viewCodeModal.submission.questions.map((q, idx) => (
+                <div key={idx} style={{ marginBottom: "2rem" }}>
+                  <div className="flex justify-between items-center mb-2">
+                    <h3 style={{ fontSize: "1rem", color: "var(--primary-color)" }}>Question {idx + 1}</h3>
+                    <span className="badge">{q.score} / {q.maxScore} pts</span>
+                  </div>
+                  <p style={{ marginBottom: "1rem", fontWeight: 500 }}>{q.questionText}</p>
+                  <CodeHighlighter code={q.code || "// No code submitted"} />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ===== DELETE CONFIRMATION MODAL ===== */}
       {deleteConfirm.show && (
         <div className="modal-overlay" style={{ zIndex: 10000 }}>

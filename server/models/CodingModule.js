@@ -7,6 +7,7 @@ const testCaseSchema = new mongoose.Schema({
 
 const codingQuestionSchema = new mongoose.Schema({
     questionText: { type: String, required: true },
+    starterCode: { type: String, default: '' },
     testCases: { type: [testCaseSchema], default: [] },
 }, { _id: true });
 
