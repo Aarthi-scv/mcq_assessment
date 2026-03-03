@@ -25,7 +25,7 @@ const LineNums = ({ code }) => {
     );
 };
 
-const DEFAULT_CODE = `#include <stdio.h>\n\nint main() {\n    // Write your solution here\n    return 0;\n}\n`;
+const DEFAULT_CODE = "";
 
 // ── Submit Confirmation Modal ────────────────────────────────────────────────
 const SubmitModal = ({ unansweredCount, onConfirm, onCancel, submitting }) => (
@@ -153,7 +153,7 @@ export default function CodingAssessment() {
                     }
                 }
 
-                const initCodes = mod.questions.map(q => q.starterCode || DEFAULT_CODE);
+                const initCodes = mod.questions.map(q => "");
                 const initResults = mod.questions.map(q => ({ results: null, score: 0, maxScore: q.testCases.length }));
                 setModule(mod);
                 setCodes(initCodes);
@@ -311,7 +311,10 @@ export default function CodingAssessment() {
         try {
             const { data } = await axios.post(`${API_URL}/run-testcases`, {
                 code: codes[qIndex],
-                testCases: q.testCases,
+                testCases: q.testCases.map(tc => ({
+                    ...tc,
+                    input: (tc.inputs || [tc.input || ""]).join("\n")
+                })),
             });
             setResults(prev => prev.map((r, i) =>
                 i === qIndex ? { results: data.results, score: data.totalScore, maxScore: data.maxScore } : r
@@ -569,8 +572,12 @@ export default function CodingAssessment() {
                                     </div>
                                     <div className="ca-tc-io">
                                         <div className="ca-tc-io-row">
-                                            <span className="ca-tc-io-label">Input</span>
-                                            <pre className="ca-tc-io-val">{tc.input || "(none)"}</pre>
+                                            <span className="ca-tc-io-label">Inputs</span>
+                                            <div className="ca-tc-io-inputs">
+                                                {(tc.inputs || [tc.input || ""]).map((inv, ii) => (
+                                                    <pre key={ii} className="ca-tc-io-val mini">{inv || (ii === 0 ? "(none)" : "")}</pre>
+                                                ))}
+                                            </div>
                                         </div>
                                         <div className="ca-tc-io-row">
                                             <span className="ca-tc-io-label">Expected</span>

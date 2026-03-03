@@ -427,16 +427,17 @@
     color: #e4e4e7;
 }
 
-.ca-tc-io-val.ok {
-    color: #6ee7b7;
-    border-color: rgba(16, 185, 129, 0.15);
-    background: rgba(16, 185, 129, 0.05);
+.ca-tc-io-val.mini {
+    padding: 0.15rem 0.4rem;
+    font-size: 0.72rem;
+    opacity: 0.85;
 }
 
-.ca-tc-io-val.err {
-    color: #fca5a5;
-    border-color: rgba(239, 68, 68, 0.15);
-    background: rgba(239, 68, 68, 0.05);
+.ca-tc-io-inputs {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    margin-bottom: 0.2rem;
 }
 
 .ca-tc-error {

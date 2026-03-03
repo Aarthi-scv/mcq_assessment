@@ -12,10 +12,9 @@ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 const BATCHES = ["ES-B2", "ES-B3", "DV-B8", "DV-B9", "DV-B10", "DV-B11", "DV-B12"];
 
-const emptyTestCase = () => ({ input: "", expectedOutput: "" });
+const emptyTestCase = () => ({ inputs: [""], expectedOutput: "" });
 const emptyQuestion = () => ({
     questionText: "",
-    starterCode: "#include <stdio.h>\n\nint main() {\n    // Write your solution here\n    return 0;\n}\n",
     testCases: [emptyTestCase(), emptyTestCase(), emptyTestCase()]
 });
 
@@ -54,6 +53,45 @@ export default function CreateCodingModule() {
             i === qi
                 ? { ...q, testCases: q.testCases.map((tc, j) => j === ti ? { ...tc, [field]: val } : tc) }
                 : q));
+
+    const addInput = (qi, ti) =>
+        setQuestions(prev => prev.map((q, i) =>
+            i === qi
+                ? {
+                    ...q,
+                    testCases: q.testCases.map((tc, j) =>
+                        j === ti ? { ...tc, inputs: [...tc.inputs, ""] } : tc
+                    )
+                }
+                : q
+        ));
+
+    const removeInput = (qi, ti, ii) =>
+        setQuestions(prev => prev.map((q, i) =>
+            i === qi
+                ? {
+                    ...q,
+                    testCases: q.testCases.map((tc, j) =>
+                        j === ti ? { ...tc, inputs: tc.inputs.filter((_, k) => k !== ii) } : tc
+                    )
+                }
+                : q
+        ));
+
+    const updateInputValue = (qi, ti, ii, val) =>
+        setQuestions(prev => prev.map((q, i) =>
+            i === qi
+                ? {
+                    ...q,
+                    testCases: q.testCases.map((tc, j) =>
+                        j === ti ? {
+                            ...tc,
+                            inputs: tc.inputs.map((inv, k) => k === ii ? val : inv)
+                        } : tc
+                    )
+                }
+                : q
+        ));
 
     // ── Submit ──────────────────────────────────────────────────────────────────
     const handleSave = async () => {
@@ -159,19 +197,6 @@ export default function CreateCodingModule() {
                                 )}
                             </div>
 
-                            {/* Starter Code */}
-                            <div className="ccm-starter-code-section">
-                                <label className="ccm-tc-section-title">
-                                    <Terminal size={13} /> Starter Code (Initial editor content)
-                                </label>
-                                <textarea
-                                    className="ccm-tc-area ccm-starter-code-area"
-                                    rows={6}
-                                    placeholder="#include <stdio.h>..."
-                                    value={q.starterCode}
-                                    onChange={e => updateQuestionField(qi, "starterCode", e.target.value)}
-                                />
-                            </div>
 
                             {/* Test cases */}
                             <div className="ccm-tc-section">
@@ -186,14 +211,27 @@ export default function CreateCodingModule() {
                                             <span className="ccm-tc-label">Case {ti + 1}</span>
                                             <div className="ccm-tc-fields">
                                                 <div className="ccm-tc-field">
-                                                    <label><Terminal size={11} /> Input (stdin)</label>
-                                                    <textarea
-                                                        className="ccm-tc-area"
-                                                        rows={3}
-                                                        placeholder="e.g. 5&#10;1 2 3 4 5"
-                                                        value={tc.input}
-                                                        onChange={e => updateTestCase(qi, ti, "input", e.target.value)}
-                                                    />
+                                                    <label><Terminal size={11} /> Test Case Inputs</label>
+                                                    <div className="ccm-tc-inputs-list">
+                                                        {tc.inputs.map((inputValue, ii) => (
+                                                            <div key={ii} className="ccm-tc-input-item">
+                                                                <input
+                                                                    className="input ccm-tc-input-field"
+                                                                    placeholder={`Input ${ii + 1}`}
+                                                                    value={inputValue}
+                                                                    onChange={e => updateInputValue(qi, ti, ii, e.target.value)}
+                                                                />
+                                                                {tc.inputs.length > 1 && (
+                                                                    <button className="ccm-remove-btn mini" onClick={() => removeInput(qi, ti, ii)}>
+                                                                        <Trash2 size={12} />
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        ))}
+                                                        <button className="ccm-add-input-btn" onClick={() => addInput(qi, ti)}>
+                                                            <Plus size={11} /> Add Input Parameter
+                                                        </button>
+                                                    </div>
                                                 </div>
                                                 <div className="ccm-tc-field">
                                                     <label><FlaskConical size={11} /> Expected Output</label>
