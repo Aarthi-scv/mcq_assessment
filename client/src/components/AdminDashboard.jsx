@@ -440,6 +440,28 @@ const AdminDashboard = () => {
     }
   };
 
+  const deleteSubmission = async (id, userName) => {
+    if (!window.confirm(`Are you sure you want to reset the assessment for ${userName}? This will delete their current score and allow them to retake the exam.`)) return;
+    try {
+      await axios.delete(`${API_URL}/submissions/${id}`, getAdminHeaders());
+      toast.success(`Assessment reset for ${userName}`);
+      fetchSubmissions();
+    } catch (err) {
+      toast.error("Failed to reset assessment.");
+    }
+  };
+
+  const deleteCodingSubmission = async (id, userName) => {
+    if (!window.confirm(`Are you sure you want to reset the coding assessment for ${userName}? This will delete their code and score.`)) return;
+    try {
+      await axios.delete(`${API_URL}/coding-submissions/${id}`, getAdminHeaders());
+      toast.success(`Coding assessment reset for ${userName}`);
+      fetchCodingSubmissions();
+    } catch (err) {
+      toast.error("Failed to reset coding assessment.");
+    }
+  };
+
   const fetchCodingModules = async () => {
     setCodingModLoading(true);
     try {
@@ -1318,7 +1340,21 @@ const AdminDashboard = () => {
                       </div>
                     </td>
                     <td className="text-secondary">
-                      {new Date(sub.submittedAt).toLocaleDateString()}
+                      <div className="flex flex-col gap-2 items-start">
+                        <span>{new Date(sub.submittedAt).toLocaleDateString()}</span>
+                        {sub.retakeRequested && (
+                          <span className="badge" style={{ background: "rgba(239, 68, 68, 0.15)", color: "#f87171", border: "1px solid rgba(239, 68, 68, 0.3)", fontSize: "10px" }}>
+                            Retake Requested
+                          </span>
+                        )}
+                        <button
+                          className="btn btn-secondary text-xs"
+                          style={{ padding: "0.4rem", width: "100%" }}
+                          onClick={() => deleteSubmission(sub._id, sub.userName)}
+                        >
+                          {sub.retakeRequested ? "Approve Retake" : "Reset Attempt"}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -1433,7 +1469,23 @@ const AdminDashboard = () => {
                             <Code2 size={12} /> View Code
                           </button>
                         </td>
-                        <td className="text-secondary">{new Date(s.submittedAt).toLocaleDateString()}</td>
+                        <td className="text-secondary">
+                          <div className="flex flex-col gap-2 items-start">
+                            <span>{new Date(s.submittedAt).toLocaleDateString()}</span>
+                            {s.retakeRequested && (
+                              <span className="badge" style={{ background: "rgba(239, 68, 68, 0.15)", color: "#f87171", border: "1px solid rgba(239, 68, 68, 0.3)", fontSize: "10px" }}>
+                                Retake Requested
+                              </span>
+                            )}
+                            <button
+                              className="btn btn-secondary text-xs"
+                              style={{ padding: "0.4rem", width: "100%" }}
+                              onClick={() => deleteCodingSubmission(s._id, s.userName)}
+                            >
+                              {s.retakeRequested ? "Approve Retake" : "Reset Attempt"}
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     );
                   })

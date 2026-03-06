@@ -18,7 +18,8 @@ const submissionSchema = new mongoose.Schema({
     rating: { type: Number, default: 0 },
     comment: String
   },
-  submittedAt: { type: Date, default: Date.now }
+  submittedAt: { type: Date, default: Date.now },
+  retakeRequested: { type: Boolean, default: false }
 });
 
 module.exports = mongoose.model('Submission', submissionSchema);

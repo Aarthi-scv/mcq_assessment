@@ -140,6 +140,34 @@ const CandidateDashboard = () => {
     navigate("/login");
   };
 
+  const handleRequestRetake = async (submissionId) => {
+    try {
+      const token = localStorage.getItem("candidateToken");
+      await axios.patch(`${API_URL}/request-retake/${submissionId}`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success("Retake request sent to instructor.");
+      // Refresh submissions
+      fetchUserSubmissions(user.name, token);
+    } catch (err) {
+      toast.error("Failed to request retake.");
+    }
+  };
+
+  const handleRequestCodingRetake = async (submissionId) => {
+    try {
+      const token = localStorage.getItem("candidateToken");
+      await axios.patch(`${API_URL}/request-coding-retake/${submissionId}`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success("Retake request sent to instructor.");
+      // Refresh coding submissions
+      fetchUserCodingSubmissions(user.name, token);
+    } catch (err) {
+      toast.error("Failed to request retake.");
+    }
+  };
+
   const isReportAvailable = (submittedAt) => {
     if (!submittedAt) return false;
     const submissionTime = new Date(submittedAt).getTime();
@@ -234,22 +262,38 @@ const CandidateDashboard = () => {
                         {sub.score} Pts
                       </span>
                     </div>
-                    {isReportAvailable(sub.submittedAt) ? (
-                      <button
-                        className="btn btn-secondary w-full text-xs"
-                        style={{ padding: "0.4rem" }}
-                        onClick={() => navigate(`/assessment-report/${sub._id}`)}
-                      >
-                        View Report
-                      </button>
-                    ) : (
-                      <div
-                        className="p-1 px-2 bg-white/5 border border-white/5 rounded text-secondary italic text-center"
-                        style={{ fontSize: "10px" }}
-                      >
-                        {getWaitMessage(sub.submittedAt)}
-                      </div>
-                    )}
+                    <div className="flex gap-2">
+                      {isReportAvailable(sub.submittedAt) ? (
+                        <button
+                          className="btn btn-secondary flex-1 text-xs"
+                          style={{ padding: "0.4rem" }}
+                          onClick={() => navigate(`/assessment-report/${sub._id}`)}
+                        >
+                          View Report
+                        </button>
+                      ) : (
+                        <div
+                          className="flex-1 p-1 px-2 bg-white/5 border border-white/5 rounded text-secondary italic text-center"
+                          style={{ fontSize: "10px" }}
+                        >
+                          {getWaitMessage(sub.submittedAt)}
+                        </div>
+                      )}
+
+                      {!sub.retakeRequested ? (
+                        <button
+                          className="btn text-xs"
+                          style={{ padding: "0.4rem", background: "rgba(59, 130, 246, 0.1)", color: "#60a5fa", border: "1px solid rgba(59, 130, 246, 0.2)" }}
+                          onClick={() => handleRequestRetake(sub._id)}
+                        >
+                          Retake
+                        </button>
+                      ) : (
+                        <span className="text-secondary italic text-center flex-1" style={{ fontSize: "10px", padding: "0.4rem" }}>
+                          Retake Pending
+                        </span>
+                      )}
+                    </div>
                   </div>
                 ))
               ) : (
@@ -278,8 +322,26 @@ const CandidateDashboard = () => {
                   <span className="badge"><Clock size={11} /> {activeCodingModule.timer} min</span>
                 </div>
                 {alreadySubmitted ? (
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.75rem", borderRadius: "8px", background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)", color: "#10b981", fontSize: "0.88rem", fontWeight: 600 }}>
-                    <CheckCircle size={16} /> You have already submitted this coding assessment.
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.75rem", borderRadius: "8px", background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)", color: "#10b981", fontSize: "0.88rem", fontWeight: 600 }}>
+                      <CheckCircle size={16} /> Already submitted.
+                    </div>
+                    {(() => {
+                      const sub = codingSubmissions.find(s => s.moduleId?.toString() === activeCodingModule._id?.toString());
+                      if (!sub) return null;
+                      if (!sub.retakeRequested) {
+                        return (
+                          <button
+                            className="btn btn-secondary text-xs"
+                            onClick={() => handleRequestCodingRetake(sub._id)}
+                          >
+                            Request Retake
+                          </button>
+                        );
+                      } else {
+                        return <div className="text-secondary italic text-center text-xs">Retake Pending Instructor Approval</div>;
+                      }
+                    })()}
                   </div>
                 ) : (
                   <>

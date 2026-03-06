@@ -833,6 +833,30 @@ router.get('/submissions', authenticateAdmin, async (req, res) => {
   }
 });
 
+// Request Retake (MCQ) - Candidate
+router.patch('/request-retake/:id', authenticateCandidate, async (req, res) => {
+  try {
+    const submission = await Submission.findById(req.params.id);
+    if (!submission) return res.status(404).json({ message: 'Submission not found' });
+
+    submission.retakeRequested = true;
+    await submission.save();
+    res.json({ message: 'Retake requested successfully' });
+  } catch (err) {
+    res.status(500).json({ message: 'Error requesting retake' });
+  }
+});
+
+// Delete MCQ Submission (Reset Attempt) - Admin
+router.delete('/submissions/:id', authenticateAdmin, async (req, res) => {
+  try {
+    await Submission.findByIdAndDelete(req.params.id);
+    res.json({ message: 'Submission deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: 'Error deleting submission' });
+  }
+});
+
 router.get('/candidate-submissions/:userName', authenticateCandidate, async (req, res) => {
   try {
     const { userName } = req.params;
@@ -1189,6 +1213,30 @@ router.post('/coding-submit', authenticateCandidate, async (req, res) => {
   } catch (err) {
     console.error('[coding-submit] Error:', err);
     res.status(500).json({ message: 'Error saving coding submission', error: err.message });
+  }
+});
+
+// Request Retake (Coding) - Candidate
+router.patch('/request-coding-retake/:id', authenticateCandidate, async (req, res) => {
+  try {
+    const submission = await CodingSubmission.findById(req.params.id);
+    if (!submission) return res.status(404).json({ message: 'Submission not found' });
+
+    submission.retakeRequested = true;
+    await submission.save();
+    res.json({ message: 'Retake requested successfully' });
+  } catch (err) {
+    res.status(500).json({ message: 'Error requesting retake' });
+  }
+});
+
+// Delete Coding Submission (Reset Attempt) - Admin
+router.delete('/coding-submissions/:id', authenticateAdmin, async (req, res) => {
+  try {
+    await CodingSubmission.findByIdAndDelete(req.params.id);
+    res.json({ message: 'Coding submission deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: 'Error deleting coding submission' });
   }
 });
 

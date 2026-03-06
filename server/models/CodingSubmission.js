@@ -27,6 +27,7 @@ const codingSubmissionSchema = new mongoose.Schema({
     maxScore: { type: Number, default: 0 },
     questions: [questionResultSchema],
     submittedAt: { type: Date, default: Date.now },
+    retakeRequested: { type: Boolean, default: false }
 });
 
 module.exports = mongoose.model('CodingSubmission', codingSubmissionSchema);
