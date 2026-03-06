@@ -376,12 +376,17 @@ router.post('/upload', authenticateAdmin, upload.single('file'), async (req, res
 router.post('/modules/parse-docx', authenticateAdmin, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
+      console.log('Docx Parse Error: No file provided');
       return res.status(400).json({ message: 'No file uploaded' });
     }
+
+    console.log('Processing Docx:', req.file.originalname, 'Size:', req.file.size);
 
     // Read file from disk since multer is configured with diskStorage
     const buffer = fs.readFileSync(req.file.path);
     const questions = await parseDocx(buffer);
+
+    console.log('Parsed Questions Count:', questions.length);
 
     // Cleanup temporary file
     if (req.file.path) {

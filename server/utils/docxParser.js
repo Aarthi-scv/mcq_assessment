@@ -21,23 +21,26 @@ async function parseDocx(buffer) {
     const result = await mammoth.convertToHtml({ buffer }, options);
     const html = result.value;
 
-    // Split by labels
+    // Split by markers - being flexible with tags around them
     const chunks = html.split(/===QUESTION START===/g);
     const parsedQuestions = [];
 
     for (const chunk of chunks) {
         if (!chunk.trim() || !chunk.includes('===QUESTION END===')) continue;
 
-        const content = chunk.split(/===QUESTION END===/)[0];
+        let content = chunk.split(/===QUESTION END===/)[0];
 
-        // Simple regex parsing of the HTML content
-        // We expect lines like:
-        // 1. Question text <img src="{{IMG_...}}">
-        // A) Option A
-        // B) Option B
-        // ...
-        // Answer: A
-        // Explanation: ...
+        // 1. Extract potential image placeholders before stripping HTML
+        const imgPlaceholders = [];
+        const imgRegex = /{{(IMG_.*?)}}/g;
+        let imgMatch;
+        while ((imgMatch = imgRegex.exec(content)) !== null) {
+            imgPlaceholders.push(imgMatch[1]);
+        }
+
+        // 2. Strip all HTML tags to make regex matching easier
+        content = content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+        // console.log('DEBUG Content:', content); // Uncomment if needed
 
         const q = {
             qn: '',
@@ -47,48 +50,51 @@ async function parseDocx(buffer) {
             questionImage: null
         };
 
-        // Extract Question Text
-        // It's usually the first part before A) 
-        const qnMatch = content.match(/^(?:<p>)?(\d+\.[\s\S]*?)(?:<p>)?\s*[A-D]\)/);
+        // 3. Extract Question Text
+        // Look for something like "1. ... A)" or just "... A)"
+        const qnMatch = content.match(/^(?:(\d+[\.\)])\s*)?([\s\S]*?)\s+[A-D]\)/i);
         if (qnMatch) {
-            q.qn = qnMatch[1].replace(/<[^>]*>/g, ' ').trim();
-
-            // Check for image placeholder in qn text
-            const imgPlaceholder = qnMatch[1].match(/{{(IMG_.*?)}}/);
-            if (imgPlaceholder) {
-                q.questionImagePlaceholder = imgPlaceholder[1];
+            q.qn = qnMatch[2].trim();
+            // If there's a number, include it if it's part of the question text
+            if (qnMatch[1]) {
+                q.qn = qnMatch[1] + " " + q.qn;
             }
+        } else {
+            // Fallback: If no A) found, maybe the whole thing is the question
+            // But we need options, so let's check why A) wasn't found
+            console.warn('DEBUG: No A) found in content chunk');
         }
 
-        // Extract Options
-        const optAMatch = content.match(/A\)\s*([\s\S]*?)(?:<p>)?\s*B\)/);
-        const optBMatch = content.match(/B\)\s*([\s\S]*?)(?:<p>)?\s*C\)/);
-        const optCMatch = content.match(/C\)\s*([\s\S]*?)(?:<p>)?\s*D\)/);
-        const optDMatch = content.match(/D\)\s*([\s\S]*?)(?:<p>)?\s*Answer:/);
+        // 4. Extract Options
+        // Using more flexible regex for options
+        const optAMatch = content.match(/A\)\s*([\s\S]*?)\s+B\)/i);
+        const optBMatch = content.match(/B\)\s*([\s\S]*?)\s+C\)/i);
+        const optCMatch = content.match(/C\)\s*([\s\S]*?)\s+D\)/i);
+        const optDMatch = content.match(/D\)\s*([\s\S]*?)\s+Answer:/i);
 
         q.options = [
-            optAMatch ? optAMatch[1].replace(/<[^>]*>/g, ' ').trim() : '',
-            optBMatch ? optBMatch[1].replace(/<[^>]*>/g, ' ').trim() : '',
-            optCMatch ? optCMatch[1].replace(/<[^>]*>/g, ' ').trim() : '',
-            optDMatch ? optDMatch[1].replace(/<[^>]*>/g, ' ').trim() : ''
+            optAMatch ? optAMatch[1].trim() : '',
+            optBMatch ? optBMatch[1].trim() : '',
+            optCMatch ? optCMatch[1].trim() : '',
+            optDMatch ? optDMatch[1].trim() : ''
         ];
 
-        // Extract Answer
-        const ansMatch = content.match(/Answer:\s*([A-D])/);
+        // 5. Extract Answer
+        const ansMatch = content.match(/Answer:\s*([A-D])/i);
         if (ansMatch) {
-            q.answerLetter = ansMatch[1];
-            q.answer = q.options[['A', 'B', 'C', 'D'].indexOf(q.answerLetter)];
+            const answerLetter = ansMatch[1].toUpperCase();
+            q.answer = q.options[['A', 'B', 'C', 'D'].indexOf(answerLetter)];
         }
 
-        // Extract Explanation
-        const expMatch = content.match(/Explanation:\s*([\s\S]*)$/);
+        // 6. Extract Explanation
+        const expMatch = content.match(/Explanation:\s*([\s\S]*)$/i);
         if (expMatch) {
-            q.explanation = expMatch[1].replace(/<[^>]*>/g, ' ').trim();
+            q.explanation = expMatch[1].trim();
         }
 
-        // If we have a placeholder, find the image and upload it
-        if (q.questionImagePlaceholder) {
-            const imageObj = images.find(img => img.imageId === q.questionImagePlaceholder);
+        // 7. Handle image - if we found a placeholder anywhere in the content chunk
+        if (imgPlaceholders.length > 0) {
+            const imageObj = images.find(img => img.imageId === imgPlaceholders[0]);
             if (imageObj) {
                 try {
                     q.questionImage = await uploadImage(imageObj.buffer);
@@ -96,7 +102,6 @@ async function parseDocx(buffer) {
                     console.error('Failed to upload image for question:', err);
                 }
             }
-            delete q.questionImagePlaceholder;
         }
 
         if (q.qn) {
