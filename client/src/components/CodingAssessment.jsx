@@ -7,6 +7,7 @@ import {
     FlaskConical, Loader2, ShieldAlert, Eye,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import ProctoringOverlay from "./Assessment/ProctoringOverlay";
 import "./CodingAssessment.css";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
@@ -238,32 +239,19 @@ export default function CodingAssessment() {
         }));
     }, [codes, results, qIndex, timeLeft, module]);
 
-    // ── Tab-switch detection ─────────────────────────────────────────────────
-    useEffect(() => {
-        const handleVisibility = () => {
-            if (document.visibilityState === "hidden") return; // only react on coming back
-            if (submitted || submittingRef.current) return;
+    // ── Tab-switch detection (Handled by ProctoringOverlay) ─────────────────
+    const handleViolation = useCallback((reason) => {
+        if (submitted || submittingRef.current) return;
 
-            tabCountRef.current += 1;
-            setTabSwitchCount(tabCountRef.current);
+        tabCountRef.current += 1;
+        setTabSwitchCount(tabCountRef.current);
 
-            if (tabCountRef.current >= MAX_TAB_SWITCHES) {
-                // Auto-submit immediately
-                toast.error("Maximum tab switches reached — submitting automatically.", { duration: 4000 });
-                handleSubmit(true);
-            } else {
-                setShowTabWarning(true);
-            }
-        };
-
-        // Detect ANY tab/window switch
-        document.addEventListener("visibilitychange", handleVisibility);
-        window.addEventListener("blur", handleVisibility);
-
-        return () => {
-            document.removeEventListener("visibilitychange", handleVisibility);
-            window.removeEventListener("blur", handleVisibility);
-        };
+        if (tabCountRef.current >= MAX_TAB_SWITCHES) {
+            toast.error(`Maximum violations reached — submitting automatically due to ${reason}.`, { duration: 4000 });
+            handleSubmit(true);
+        } else {
+            setShowTabWarning(true);
+        }
     }, [submitted]);
 
     // ── Block copy/paste/cut in textarea ────────────────────────────────────
@@ -439,6 +427,15 @@ export default function CodingAssessment() {
                     count={tabSwitchCount}
                     max={MAX_TAB_SWITCHES}
                     onClose={() => setShowTabWarning(false)}
+                />
+            )}
+
+            {/* ── Proctoring System ── */}
+            {(!submitted && !submitting) && (
+                <ProctoringOverlay
+                    onViolation={handleViolation}
+                    violationCount={tabSwitchCount} // reusing this state for all proctoring violations
+                    maxViolations={MAX_TAB_SWITCHES}
                 />
             )}
 

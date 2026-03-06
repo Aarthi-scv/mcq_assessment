@@ -10,6 +10,7 @@ import AssessmentCompletion from "./Assessment/AssessmentCompletion";
 import AssessmentHeader from "./Assessment/AssessmentHeader";
 import QuestionCard from "./Assessment/QuestionCard";
 import AssessmentSidebar from "./Assessment/AssessmentSidebar";
+import ProctoringOverlay from "./Assessment/ProctoringOverlay";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
@@ -68,6 +69,8 @@ const AssessmentPage = () => {
   const [feedback, setFeedback] = useState({ rating: 0, comment: "" });
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [retryPending, setRetryPending] = useState(false); // queued submit
+  const [violationCount, setViolationCount] = useState(0);
+  const MAX_VIOLATIONS = 3;
 
   // Keep a ref to the latest answers/moduleId for use inside timer callbacks
   const answersRef = useRef(answers);
@@ -302,11 +305,12 @@ const AssessmentPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timerReady, submissionResult]);
 
-  // ── 3. Tab Switch Detection ────────────────────────────────────────────────
+  // ── 3. Tab Switch Detection (Legacy - now handled in ProctoringOverlay) ───────────────────
+  // We keep this for double coverage if needed or remove it. Let's keep it but sync with state.
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.hidden && !submissionResult) {
-        toast.error("Proctoring Alert: Unauthorized tab switch detected!");
+        // Handled by ProctoringOverlay, but we can add secondary toast here if desired
       }
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
@@ -339,8 +343,23 @@ const AssessmentPage = () => {
     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
+  const handleViolation = useCallback((reason) => {
+    if (submissionResult) return;
+
+    setViolationCount(prev => {
+      const next = prev + 1;
+      if (next >= MAX_VIOLATIONS) {
+        toast.error(`CRITICAL: ${reason}. Violation limit reached (${next}/${MAX_VIOLATIONS}). Submitting assessment automatically...`, { duration: 5000 });
+        handleSubmit(true, false, true); // forced=true
+      } else {
+        toast.error(`PROCTORING ALERT: ${reason}. Warning ${next} of ${MAX_VIOLATIONS}.`, { duration: 4000 });
+      }
+      return next;
+    });
+  }, [submissionResult]);
+
   // ── Submit (with offline queuing & retry) ──────────────────────────────────
-  const handleSubmit = useCallback(async (auto = false, isRetry = false) => {
+  const handleSubmit = useCallback(async (auto = false, isRetry = false, forced = false) => {
     const currentUser = userRef.current;
     const currentAnswers = answersRef.current;
     const currentModule = moduleIdRef.current;
@@ -385,7 +404,8 @@ const AssessmentPage = () => {
       setSubmissionResult(res.data.result);
       setSubmissionId(res.data.submissionId);
 
-      if (auto) toast("Assessment auto-submitted: Time Expired.");
+      if (forced) toast.error("Assessment auto-submitted due to proctoring violations.");
+      else if (auto) toast("Assessment auto-submitted: Time Expired.");
       else toast.success("Data transmitted successfully!");
 
     } catch (err) {
@@ -452,6 +472,15 @@ const AssessmentPage = () => {
             </>
           )}
         </div>
+      )}
+
+      {/* ── Proctoring System ── */}
+      {!submissionResult && (
+        <ProctoringOverlay
+          onViolation={handleViolation}
+          violationCount={violationCount}
+          maxViolations={MAX_VIOLATIONS}
+        />
       )}
 
       <div
