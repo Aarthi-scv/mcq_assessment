@@ -13,6 +13,8 @@ const CodingModule = require('../models/CodingModule');
 const User = require('../models/User');
 const Admin = require('../models/Admin');
 const { parseMCQ } = require('../utils/parser');
+const { parseDocx } = require('../utils/docxParser');
+
 const { authenticateCandidate, authenticateAdmin, JWT_SECRET } = require('../middleware/authMiddleware');
 const { setOtp, getOtp, deleteOtp } = require('../utils/otpStore');
 const { sendOtpEmail } = require('../utils/mailer');
@@ -214,7 +216,7 @@ router.post('/modules/create', authenticateAdmin, async (req, res) => {
         codeSnippet: q.codeSnippet || '',
         questionType: q.questionType || 'plain',
         optionType: q.optionType || 'multiple',
-        questionImage: null,
+        questionImage: q.questionImage || null,
         options: opts,
         answer: answerValue,
         explanation: q.explanation || ''
@@ -235,7 +237,7 @@ router.post('/modules/create', authenticateAdmin, async (req, res) => {
         codeSnippet: q.codeSnippet || '',
         questionType: q.questionType,
         optionType: q.optionType,
-        questionImage: null,
+        questionImage: q.questionImage || null,
         options: {
           A: q.options[0] || '',
           B: q.options[1] || '',
@@ -370,6 +372,36 @@ router.post('/upload', authenticateAdmin, upload.single('file'), async (req, res
   }
 });
 
+// Parse .docx Questions (extracts text and images to Cloudinary)
+router.post('/modules/parse-docx', authenticateAdmin, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    // Read file from disk since multer is configured with diskStorage
+    const buffer = fs.readFileSync(req.file.path);
+    const questions = await parseDocx(buffer);
+
+    // Cleanup temporary file
+    if (req.file.path) {
+      fs.unlinkSync(req.file.path);
+    }
+
+    res.json({
+      message: 'File parsed successfully',
+      questions
+    });
+  } catch (error) {
+    console.error('Docx Parse Error:', error);
+    if (req.file && req.file.path && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    res.status(500).json({ message: 'Error parsing .docx file', error: error.message });
+  }
+});
+
+
 // Update Module (Timer, Status, Batch)
 router.patch('/modules/:id', authenticateAdmin, async (req, res) => {
   try {
@@ -495,7 +527,7 @@ router.post('/modules/:moduleId/questions/batch', authenticateAdmin, async (req,
         codeSnippet: q.codeSnippet || '',
         questionType: q.questionType || 'plain',
         optionType: q.optionType || 'multiple',
-        questionImage: null,
+        questionImage: q.questionImage || null,
         options: opts,
         answer: answerValue,
         explanation: q.explanation || ''
@@ -507,7 +539,7 @@ router.post('/modules/:moduleId/questions/batch', authenticateAdmin, async (req,
         codeSnippet: q.codeSnippet || '',
         questionType: q.questionType || 'plain',
         optionType: q.optionType || 'multiple',
-        questionImage: null,
+        questionImage: q.questionImage || null,
         options: {
           A: opts[0] || '',
           B: opts[1] || '',

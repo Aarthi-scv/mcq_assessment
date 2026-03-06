@@ -142,6 +142,59 @@ const CreateModule = () => {
         reader.readAsText(file);
     };
 
+    const handleDocxUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const loadingToast = toast.loading("Uploading and parsing .docx file...");
+        try {
+            const res = await axios.post(
+                `${API_URL}/modules/parse-docx`,
+                formData,
+                {
+                    ...getAdminHeaders(),
+                    headers: {
+                        ...getAdminHeaders().headers,
+                        "Content-Type": "multipart/form-data",
+                    },
+                }
+            );
+
+            const parsedQuestions = res.data.questions.map(q => ({
+                qn: q.qn,
+                codeSnippet: "",
+                questionType: "plain",
+                optionType: "multiple",
+                optionA: q.options[0],
+                optionB: q.options[1],
+                optionC: q.options[2],
+                optionD: q.options[3],
+                correctAnswer: ['A', 'B', 'C', 'D'][q.options.indexOf(q.answer)] || "A",
+                explanation: q.explanation,
+                questionImage: q.questionImage // Cloudinary URL
+            }));
+
+            if (parsedQuestions.length > 0) {
+                if (formQuestions.length === 1 && !formQuestions[0].qn) {
+                    setFormQuestions(parsedQuestions);
+                } else {
+                    setFormQuestions([...formQuestions, ...parsedQuestions]);
+                }
+                toast.success(`Successfully extracted ${parsedQuestions.length} questions!`, { id: loadingToast });
+            } else {
+                toast.error("No valid questions found in the file.", { id: loadingToast });
+            }
+        } catch (err) {
+            console.error("Docx upload error:", err);
+            toast.error(err.response?.data?.message || "Error processing .docx file", { id: loadingToast });
+        } finally {
+            e.target.value = "";
+        }
+    };
+
     const addQuestion = () => {
         setFormQuestions([...formQuestions, emptyQuestion()]);
     };
@@ -360,6 +413,16 @@ const CreateModule = () => {
                                     style={{ marginBottom: "0.75rem" }}
                                 />
 
+                                {q.questionImage && (
+                                    <div style={{ marginBottom: "0.75rem", borderRadius: "8px", overflow: "hidden", border: "1px solid var(--border-color)" }}>
+                                        <img
+                                            src={q.questionImage}
+                                            alt="Question"
+                                            style={{ maxWidth: "100%", maxHeight: "300px", display: "block", margin: "0 auto" }}
+                                        />
+                                    </div>
+                                )}
+
                                 {/* Code Snippet — textarea + live syntax preview */}
                                 {q.questionType === "code" && (
                                     <div style={{ marginBottom: "0.75rem" }}>
@@ -488,6 +551,21 @@ const CreateModule = () => {
                             onClick={() => document.getElementById('question-upload').click()}
                         >
                             <FileUp size={15} /> Batch Upload (.txt)
+                        </button>
+                        <input
+                            type="file"
+                            id="docx-upload"
+                            accept=".docx"
+                            onChange={handleDocxUpload}
+                            style={{ display: "none" }}
+                        />
+                        <button
+                            type="button"
+                            className="btn btn-secondary"
+                            style={{ padding: "0.4rem 0.9rem", fontSize: "0.85rem", border: "1px dashed var(--primary-color)", color: "var(--primary-color)" }}
+                            onClick={() => document.getElementById('docx-upload').click()}
+                        >
+                            <FileUp size={15} /> Batch Upload (.docx)
                         </button>
                         <button
                             type="button"

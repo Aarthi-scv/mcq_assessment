@@ -12,7 +12,7 @@ const path = require('path');
 // CORS configuration - restrict to your frontend domain in production
 const allowedOrigins = process.env.CLIENT_URL
   ? process.env.CLIENT_URL.split(',')
-  : ['http://localhost:5173', 'http://localhost:3000'];
+  : ['http://localhost:5173', 'http://localhost:3000','http://test.silicon-craft.com'];
 
 app.use(cors({
   origin: allowedOrigins,

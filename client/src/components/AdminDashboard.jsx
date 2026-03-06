@@ -768,6 +768,7 @@ const AdminDashboard = () => {
         answer: q.answer,
         correctAnswer: ['A', 'B', 'C', 'D'][q.options.indexOf(q.answer)] || 'A',
         explanation: q.explanation,
+        questionImage: q.questionImage || null,
       }));
     }
     if (module.questions?.length > 0) {
@@ -780,6 +781,7 @@ const AdminDashboard = () => {
         answer: q.correctValue,
         correctAnswer: q.correctAnswer,
         explanation: q.explanation,
+        questionImage: q.questionImage || null,
       }));
     }
     return [];
@@ -1565,10 +1567,19 @@ const AdminDashboard = () => {
                           </button>
                         </div>
                       </div>
-                      {/* Question text — always shown */}
                       <p style={{ fontWeight: 600, marginBottom: q.questionType === "code" && q.codeSnippet ? "0.4rem" : "0.75rem" }}>
                         {q.qn}
                       </p>
+                      {/* Image preview */}
+                      {q.questionImage && (
+                        <div className="mb-3" style={{ borderRadius: "8px", overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)" }}>
+                          <img
+                            src={q.questionImage.startsWith('http') ? q.questionImage : `${API_URL.replace('/api', '')}/uploads/${q.questionImage}`}
+                            alt="Question"
+                            style={{ maxWidth: "100%", maxHeight: "250px", display: "block" }}
+                          />
+                        </div>
+                      )}
                       {/* Code block — syntax-highlighted */}
                       {q.questionType === "code" && q.codeSnippet && (
                         <CodeHighlighter code={q.codeSnippet} />

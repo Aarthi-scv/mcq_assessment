@@ -36,7 +36,9 @@ const QuestionCard = ({
         {question.questionImage && (
           <div className="question-image-container">
             <img
-              src={`${UPLOADS_URL}/${question.questionImage}`}
+              src={question.questionImage.startsWith('http')
+                ? question.questionImage
+                : `${UPLOADS_URL}/${question.questionImage}`}
               alt={`Question ${index + 1}`}
               className="question-image"
             />
