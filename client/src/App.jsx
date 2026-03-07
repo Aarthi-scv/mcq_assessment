@@ -19,10 +19,10 @@ import "./App.css";
 // Landing component
 const Home = () => (
   <div className="container flex flex-col items-center justify-center fade-in home-container">
-    <div className="mb-8 p-4 zap-banner">
-      <Zap size={64} className="text-primary" />
+    <div className="logo-wrapper">
+      <img src="/siliconcraft-logo.png" alt="SiliconCraft Logo" className="silicon-logo" />
     </div>
-    <h1 className="landing-title">NexGen Electronics</h1>
+    <h1 className="landing-title">SiliconCraft</h1>
     <p className="text-secondary mb-8 landing-subtitle">
       Advanced Assessment & Training Platform for ASIC, VLSI, and Embedded
       Systems Engineering.

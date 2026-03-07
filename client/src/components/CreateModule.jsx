@@ -40,81 +40,101 @@ const CreateModule = () => {
     const [submitting, setSubmitting] = useState(false);
 
     const parseUploadedFile = (text) => {
+        console.log('[Frontend Parser] Starting extraction, text length:', text.length);
         const questions = [];
-        const chunks = text.split(/===QUESTION START===/g);
+        const chunks = text.split(/===QUESTION START===/i);
 
-        chunks.forEach(chunk => {
+        chunks.forEach((chunk, index) => {
             if (!chunk.trim()) return;
-            const q = {
-                qn: "",
-                codeSnippet: "",
-                questionType: "plain",
-                optionType: "multiple",
-                optionA: "",
-                optionB: "",
-                optionC: "",
-                optionD: "",
-                correctAnswer: "A",
-                explanation: "",
-            };
 
-            const content = chunk.split(/===QUESTION END===/)[0].trim();
-            const lines = content.split('\n');
+            try {
+                const contentParts = chunk.split(/===QUESTION END===/i);
+                let cleanBlock = contentParts[0].trim();
+                if (!cleanBlock) return;
 
-            let currentSection = "";
-            let questionLines = [];
-            let codeLines = [];
+                // Normalize whitespace
+                cleanBlock = cleanBlock.replace(/\u00A0/g, ' ');
 
-            lines.forEach(line => {
-                const trimmed = line.trim();
-                const upperTrimmed = trimmed.toUpperCase();
-
-                if (upperTrimmed.startsWith("QN_NO:")) {
-                    // Ignore QN_NO
-                } else if (upperTrimmed.startsWith("TYPE:")) {
-                    // Use TYPE if needed
-                } else if (upperTrimmed.startsWith("QUESTION:")) {
-                    currentSection = "QUESTION";
-                    const firstPart = line.substring(line.indexOf(':') + 1).trim();
-                    if (firstPart) questionLines.push(firstPart);
-                } else if (upperTrimmed.startsWith("CODE:")) {
-                    currentSection = "CODE";
-                    q.questionType = "code";
-                    const firstPart = line.substring(line.indexOf(':') + 1).trim();
-                    if (firstPart) codeLines.push(firstPart);
-                } else if (upperTrimmed.startsWith("OPTIONS:")) {
-                    currentSection = "OPTIONS";
-                } else if (upperTrimmed.startsWith("ANSWER:")) {
-                    currentSection = "ANSWER";
-                    const ansLetter = trimmed.substring(trimmed.indexOf(':') + 1).trim().charAt(0).toUpperCase();
-                    if (['A', 'B', 'C', 'D'].includes(ansLetter)) {
-                        q.correctAnswer = ansLetter;
-                    }
-                } else if (upperTrimmed.startsWith("EXPLANATION:")) {
-                    currentSection = "EXPLANATION";
-                    const firstPart = line.substring(line.indexOf(':') + 1).trim();
-                    if (firstPart) q.explanation = firstPart;
-                } else {
-                    if (currentSection === "QUESTION") {
-                        questionLines.push(line);
-                    } else if (currentSection === "CODE") {
-                        codeLines.push(line);
-                    } else if (currentSection === "OPTIONS") {
-                        if (trimmed.startsWith("A.")) q.optionA = trimmed.replace(/^A\.\s*/, "").trim();
-                        else if (trimmed.startsWith("B.")) q.optionB = trimmed.replace(/^B\.\s*/, "").trim();
-                        else if (trimmed.startsWith("C.")) q.optionC = trimmed.replace(/^C\.\s*/, "").trim();
-                        else if (trimmed.startsWith("D.")) q.optionD = trimmed.replace(/^D\.\s*/, "").trim();
-                    } else if (currentSection === "EXPLANATION") {
-                        q.explanation += (q.explanation ? "\n" : "") + line;
-                    }
+                // 1. Identify where options start (A. or A) or a. or a))
+                // Even more permissive: match A. or A) with optional space
+                const optAStartMatch = cleanBlock.match(/(?:\s|^)[A][\.\)]/i);
+                if (!optAStartMatch) {
+                    console.warn(`[Frontend Parser] Skipping block ${index}: No Option A marker found. Prefix: "${cleanBlock.substring(0, 100)}..."`);
+                    return;
                 }
-            });
 
-            q.qn = questionLines.join('\n').trim();
-            q.codeSnippet = codeLines.join('\n').trim();
+                const aIndex = optAStartMatch.index;
+                const aCharIndex = cleanBlock.indexOf(optAStartMatch[0].trim(), aIndex);
 
-            if (q.qn) questions.push(q);
+                let rawQnText = cleanBlock.substring(0, aCharIndex).trim();
+
+                // Separate CODE: if present
+                let codeSnippet = "";
+                let questionType = "plain";
+
+                const codeLabelMatch = rawQnText.match(/CODE:\s*([\s\S]*)/i);
+                if (codeLabelMatch) {
+                    questionType = "code";
+                    codeSnippet = codeLabelMatch[1].trim();
+                    rawQnText = rawQnText.split(/CODE:/i)[0].trim();
+                }
+
+                // Final cleanup of question text
+                let qnText = rawQnText.replace(/QUESTION:\s*/gi, '').trim();
+                // Strip leading numbers
+                qnText = qnText.replace(/^\d+[\.\)]?\s*/, '');
+
+                // 2. Extract options A, B, C, D
+                const getOpt = (letter, nextLetters) => {
+                    const nextSelector = `(?:\\s+${nextLetters}[\\.\\)]|\\s+Answer:)`;
+                    const regex = new RegExp(`${letter}[\\.\\)]\\s*([\\s\\S]*?)(?=${nextSelector})`, 'i');
+                    const match = cleanBlock.match(regex);
+                    return match ? match[1].trim() : "";
+                };
+
+                let valA = getOpt('A', '[B-D]');
+                let valB = getOpt('B', '[C-D]');
+                let valC = getOpt('C', 'D');
+                const optDMatch = cleanBlock.match(/D[\.\)]\s*([\s\S]*?)(?=\s+Answer:)/i);
+                let valD = optDMatch ? optDMatch[1].trim() : "";
+
+                // Cleanup labels
+                const stripLabels = (val) => val.replace(/^(?:OPTIONS|CODE|QUESTION):\s*/gi, '').trim();
+                valA = stripLabels(valA); valB = stripLabels(valB); valC = stripLabels(valC); valD = stripLabels(valD);
+
+                const options = [valA, valB, valC, valD];
+
+                // 3. Extract Answer Letter
+                const answerMatch = cleanBlock.match(/Answer:\s*([A-D])/i);
+                const answerLetter = answerMatch ? answerMatch[1].toUpperCase() : "A";
+
+                // 4. Extract Explanation
+                const expMatch = cleanBlock.match(/Explanation:\s*([\s\S]*?)$/i);
+                const explanation = expMatch ? expMatch[1].trim() : "";
+
+                if (qnText && (valA || valB)) {
+                    console.log(`[Frontend Parser] Successfully parsed Q${index}: "${qnText.substring(0, 30)}..."`);
+                    questions.push({
+                        qn: qnText,
+                        codeSnippet: codeSnippet,
+                        questionType: questionType,
+                        optionType: "multiple",
+                        optionA: valA,
+                        optionB: valB,
+                        optionC: valC,
+                        optionD: valD,
+                        correctAnswer: answerLetter,
+                        explanation: explanation,
+                    });
+                } else {
+                    console.warn(`[Frontend Parser] Block ${index} rejected. qnText: ${!!qnText}, valA: ${!!valA}`);
+                }
+            } catch (err) {
+                console.error('[Frontend Parser] Error in chunk:', err);
+            }
         });
+
+        console.log('[Frontend Parser] Successfully extracted:', questions.length);
         return questions;
     };
 

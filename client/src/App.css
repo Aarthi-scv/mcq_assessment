@@ -42,3 +42,33 @@
   font-size: 1rem;
   color: var(--primary-color);
 }
+
+@keyframes silicon-pulse {
+  0% {
+    filter: drop-shadow(0 0 2px rgba(0, 245, 255, 0.4));
+    transform: scale(1);
+  }
+
+  50% {
+    filter: drop-shadow(0 0 15px rgba(0, 245, 255, 0.7));
+    transform: scale(1.02);
+  }
+
+  100% {
+    filter: drop-shadow(0 0 2px rgba(0, 245, 255, 0.4));
+    transform: scale(1);
+  }
+}
+
+.silicon-logo {
+  height: 150px;
+  width: auto;
+  animation: silicon-pulse 4s ease-in-out infinite;
+  transition: all 0.3s ease;
+  object-fit: contain;
+}
+
+.silicon-logo:hover {
+  filter: drop-shadow(0 0 25px rgba(0, 245, 255, 0.9));
+  transform: scale(1.05);
+}
