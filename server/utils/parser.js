@@ -1,21 +1,34 @@
 function parseMCQ(text) {
-  // Split by ===QUESTION START===
+  console.log('[Parser] Starting extraction from text length:', text.length);
+
+  // Split by ===QUESTION START===, handle case-insensitivity and multiple newlines
   const blocks = text.split(/===QUESTION START===/i).filter(block => block.trim().length > 0);
+  console.log('[Parser] Found potential question blocks:', blocks.length);
 
   const questions = blocks.map((block, index) => {
     try {
-      // Content is everything before ===QUESTION END===
-      const cleanBlock = block.split(/===QUESTION END===/i)[0].trim();
+      // Extract content between START and END markers
+      const blockParts = block.split(/===QUESTION END===/i);
+      let cleanBlock = blockParts[0].trim();
 
-      // 1. Identify where options start (A. or A))
-      const optAStartMatch = cleanBlock.match(/\s+A[\.\)]/);
-      if (!optAStartMatch) return null;
+      if (!cleanBlock) return null;
+
+      // Normalize whitespace: replace non-breaking spaces and simplify newlines
+      cleanBlock = cleanBlock.replace(/\u00A0/g, ' ');
+
+      // 1. Identify where options start (A. or A) or a. or a))
+      // Be VERY flexible: Look for A followed by . or ) and optionally some space
+      const optAStartMatch = cleanBlock.match(/(?:\s|^)A[\.\)]/i);
+      if (!optAStartMatch) {
+        console.warn(`[Parser] Skipping block ${index + 1}: Could not find Option A marker. Prefix: "${cleanBlock.substring(0, 50)}..."`);
+        return null;
+      }
 
       const aIndex = optAStartMatch.index;
-      let rawQnText = cleanBlock.substring(0, aIndex).trim();
+      // Index of the actual "A" character (match might have a leading whitespace)
+      const aCharIndex = cleanBlock.substring(aIndex, aIndex + 2).match(/A/i) ? aIndex : aIndex + 1;
 
-      // Remove any leading numbers like "20." or "20)"
-      rawQnText = rawQnText.replace(/^\d+[\.\)]\s*/, '');
+      let rawQnText = cleanBlock.substring(0, aCharIndex).trim();
 
       // Separate CODE: if present
       let codeSnippet = "";
@@ -28,22 +41,33 @@ function parseMCQ(text) {
         rawQnText = rawQnText.split(/CODE:/i)[0].trim();
       }
 
-      // Final cleanup of question text
-      const qnText = rawQnText.replace(/QUESTION:\s*/gi, '').trim();
+      // Final cleanup of question text (remove QUESTION: label AND the question number)
+      let qnText = rawQnText.replace(/QUESTION:\s*/gi, '').trim();
+      qnText = qnText.replace(/^\d+[\.\)]?\s*/, '');
 
       // 2. Extract options A, B, C, D
-      const optAMatch = cleanBlock.match(/A[\.\)]\s+([\s\S]*?)\s+B[\.\)]/i);
-      const optBMatch = cleanBlock.match(/B[\.\)]\s+([\s\S]*?)\s+C[\.\)]/i);
-      const optCMatch = cleanBlock.match(/C[\.\)]\s+([\s\S]*?)\s+D[\.\)]/i);
-      const optDMatch = cleanBlock.match(/D[\.\)]\s+([\s\S]*?)\s+Answer:/i);
+      // Extremely flexible lookaheads
+      const getOpt = (letter, nextLetters) => {
+        const nextSelector = `(?:\\s+${nextLetters}[\\.\\)]|\\s+Answer:)`;
+        const regex = new RegExp(`${letter}[\\.\\)]\\s*([\\s\\S]*?)(?=${nextSelector})`, 'i');
+        const match = cleanBlock.match(regex);
+        return match ? match[1].trim() : "";
+      };
 
-      let valA = optAMatch ? optAMatch[1].trim() : "";
-      let valB = optBMatch ? optBMatch[1].trim() : "";
-      let valC = optCMatch ? optCMatch[1].trim() : "";
+      let valA = getOpt('A', '[B-D]');
+      let valB = getOpt('B', '[C-D]');
+      let valC = getOpt('C', 'D');
+
+      // Option D: everything until Answer:
+      const optDMatch = cleanBlock.match(/D[\.\)]\s*([\s\S]*?)(?=\s+Answer:)/i);
       let valD = optDMatch ? optDMatch[1].trim() : "";
 
-      // Remove labels if they leaked into options
-      valA = valA.replace(/^OPTIONS:\s*/gi, '').trim();
+      // Cleanup: Strip labels if they leaked into options
+      const stripLabels = (val) => val.replace(/^(?:OPTIONS|CODE|QUESTION):\s*/gi, '').trim();
+      valA = stripLabels(valA);
+      valB = stripLabels(valB);
+      valC = stripLabels(valC);
+      valD = stripLabels(valD);
 
       const options = [valA, valB, valC, valD];
 
@@ -60,7 +84,8 @@ function parseMCQ(text) {
       const imageMatch = cleanBlock.match(/questionImage:\s*(\S+)/i);
       const questionImage = imageMatch ? imageMatch[1].trim() : null;
 
-      if (qnText && valA && answerLetter) {
+      if (qnText && (valA || valB) && answerLetter) {
+        console.log(`[Parser] Successfully parsed Question ${index + 1}`);
         return {
           id: (index + 1).toString(),
           qn: qnText,
@@ -71,14 +96,17 @@ function parseMCQ(text) {
           explanation: explanation,
           questionImage: questionImage
         };
+      } else {
+        console.warn(`[Parser] Question ${index + 1} rejected: qnText=${!!qnText}, valA=${!!valA}, answerLetter=${!!answerLetter}`);
       }
       return null;
     } catch (err) {
-      console.error('Parser error:', err);
+      console.error(`[Parser] Critical error in block ${index + 1}:`, err);
       return null;
     }
   }).filter(q => q !== null);
 
+  console.log(`[Parser] Total successfully extracted: ${questions.length}`);
   return questions;
 }
 
