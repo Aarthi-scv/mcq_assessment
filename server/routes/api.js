@@ -342,6 +342,8 @@ router.post('/upload', authenticateAdmin, upload.single('file'), async (req, res
       },
       questions: parsedQuestions.map(q => ({
         questionText: q.qn,
+        codeSnippet: q.codeSnippet || '',
+        questionType: q.questionType || 'plain',
         questionImage: q.questionImage,
         options: {
           A: q.options[0],
