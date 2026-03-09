@@ -10,8 +10,6 @@ import "./CreateCodingModule.css";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
-const BATCHES = ["ES-B2", "ES-B3", "DV-B8", "DV-B9", "DV-B10", "DV-B11", "DV-B12"];
-
 const emptyTestCase = () => ({ inputs: [""], expectedOutput: "" });
 const emptyQuestion = () => ({
     questionText: "",
@@ -23,8 +21,22 @@ export default function CreateCodingModule() {
     const [saving, setSaving] = useState(false);
     const [title, setTitle] = useState("");
     const [timer, setTimer] = useState(60);
+    const [batchOptions, setBatchOptions] = useState([]);
     const [batches, setBatches] = useState([]);
     const [questions, setQuestions] = useState([emptyQuestion()]);
+
+    // Load batches on mount
+    React.useEffect(() => {
+        const fetchBatches = async () => {
+            try {
+                const response = await axios.get(`${API_URL}/batches`);
+                setBatchOptions(response.data);
+            } catch (err) {
+                console.error("Failed to fetch batches:", err);
+            }
+        };
+        fetchBatches();
+    }, []);
 
     // ── Batch toggle ────────────────────────────────────────────────────────────
     const toggleBatch = (b) =>
@@ -161,13 +173,13 @@ export default function CreateCodingModule() {
                     <div className="ccm-batch-section">
                         <label><Users size={13} /> Assign to Batches</label>
                         <div className="ccm-batch-grid">
-                            {BATCHES.map(b => (
+                            {batchOptions.map(b => (
                                 <button
-                                    key={b}
-                                    className={`ccm-batch-chip ${batches.includes(b) ? "active" : ""}`}
-                                    onClick={() => toggleBatch(b)}
+                                    key={b._id}
+                                    className={`ccm-batch-chip ${batches.includes(b.name) ? "active" : ""}`}
+                                    onClick={() => toggleBatch(b.name)}
                                 >
-                                    {b}
+                                    {b.name}
                                 </button>
                             ))}
                         </div>

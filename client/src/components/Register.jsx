@@ -13,10 +13,24 @@ const Register = () => {
     email: "",
     batch: "",
   });
+  const [batches, setBatches] = useState([]);
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const navigate = useNavigate();
+
+  // Load batches on mount
+  React.useEffect(() => {
+    const fetchBatches = async () => {
+      try {
+        const response = await axios.get(`${API_URL}/batches`);
+        setBatches(response.data);
+      } catch (err) {
+        console.error("Failed to fetch batches:", err);
+      }
+    };
+    fetchBatches();
+  }, []);
 
   // ── Step 1: Send OTP ────────────────────────────────────────────────────────
   const handleSendOtp = async (e) => {
@@ -160,13 +174,11 @@ const Register = () => {
                 <option value="" disabled>
                   Select Batch Designation
                 </option>
-                <option value="DV-B8">DV-B8</option>
-                <option value="DV-B9">DV-B9</option>
-                <option value="DV-B10">DV-B10</option>
-                <option value="DV-B11">DV-B11</option>
-                <option value="DV-B12">DV-B12</option>
-                <option value="ES-B2">ES-B2</option>
-                <option value="ES-B3">ES-B3</option>
+                {batches.map((b) => (
+                  <option key={b._id} value={b.name}>
+                    {b.name}
+                  </option>
+                ))}
               </select>
             </div>
 

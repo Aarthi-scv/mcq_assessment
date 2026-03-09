@@ -10,7 +10,7 @@ const DeleteConfirmModal = ({
     if (!deleteConfirm.show) return null;
 
     return (
-        <div className="modal-overlay" style={{ zIndex: 10000 }}>
+        <div className="modal-overlay">
             <div className="modal-content fade-in" style={{ maxWidth: "400px", textAlign: "center", padding: "2rem" }}>
                 <div className="mb-4" style={{ color: "#ef4444", background: "rgba(239, 68, 68, 0.1)", width: "60px", height: "60px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto" }}>
                     <AlertCircle size={32} style={{ display: "block", margin: "auto" }} />

@@ -755,41 +755,41 @@ const AdminDashboard = () => {
             deleteBatch={deleteBatch}
           />
         )}
-
-        {/* Modals */}
-        <ViewModuleModal
-          viewModule={viewModule}
-          setViewModule={setViewModule}
-          getModuleQuestions={getModuleQuestions}
-          editingQuestion={editingQuestion}
-          setEditingQuestion={setEditingQuestion}
-          addingQuestion={addingQuestion}
-          setAddingQuestion={setAddingQuestion}
-          editForm={editForm}
-          setEditForm={setEditForm}
-          saveEditQuestion={saveEditQuestion}
-          startEditQuestion={startEditQuestion}
-          deleteQuestion={deleteQuestion}
-          handleBatchUpload={handleBatchUpload}
-          addQuestionToModule={addQuestionToModule}
-          newQForm={newQForm}
-          setNewQForm={setNewQForm}
-          API_URL={API_URL}
-        />
-
-        <ViewCodeModal
-          viewCodeModal={viewCodeModal}
-          setViewCodeModal={setViewCodeModal}
-          codingModules={codingModules}
-        />
-
-        <DeleteConfirmModal
-          deleteConfirm={deleteConfirm}
-          setDeleteConfirm={setDeleteConfirm}
-          confirmDeleteModule={confirmDeleteModule}
-          confirmDeleteCodingModule={confirmDeleteCodingModule}
-        />
       </div>
+
+      {/* Modals outside container to avoid transform conflicts */}
+      <ViewModuleModal
+        viewModule={viewModule}
+        setViewModule={setViewModule}
+        getModuleQuestions={getModuleQuestions}
+        editingQuestion={editingQuestion}
+        setEditingQuestion={setEditingQuestion}
+        addingQuestion={addingQuestion}
+        setAddingQuestion={setAddingQuestion}
+        editForm={editForm}
+        setEditForm={setEditForm}
+        saveEditQuestion={saveEditQuestion}
+        startEditQuestion={startEditQuestion}
+        deleteQuestion={deleteQuestion}
+        handleBatchUpload={handleBatchUpload}
+        addQuestionToModule={addQuestionToModule}
+        newQForm={newQForm}
+        setNewQForm={setNewQForm}
+        API_URL={API_URL}
+      />
+
+      <ViewCodeModal
+        viewCodeModal={viewCodeModal}
+        setViewCodeModal={setViewCodeModal}
+        codingModules={codingModules}
+      />
+
+      <DeleteConfirmModal
+        deleteConfirm={deleteConfirm}
+        setDeleteConfirm={setDeleteConfirm}
+        confirmDeleteModule={confirmDeleteModule}
+        confirmDeleteCodingModule={confirmDeleteCodingModule}
+      />
     </>
   );
 };

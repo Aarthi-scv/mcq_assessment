@@ -13,7 +13,7 @@ const ViewCodeModal = ({
     const module = codingModules.find(m => m._id === submission.moduleId?.toString() || m._id === submission.moduleId);
 
     return (
-        <div className="modal-overlay no-scrollbar" style={{ zIndex: 9999 }}>
+        <div className="modal-overlay no-scrollbar">
             <div className="modal-content fade-in no-scrollbar" style={{ maxWidth: "900px" }}>
                 <div className="flex justify-between items-center p-3 modal-header">
                     <div>
