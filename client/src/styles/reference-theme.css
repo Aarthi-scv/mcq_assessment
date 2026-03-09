@@ -1,0 +1,157 @@
+/* Reference Theme - Premium Design System (Light/Dark Support) */
+
+:root {
+    /* Default (Light) - Matching Screenshot */
+    --background: #ffffff;
+    --foreground: oklch(0.145 0 0);
+    --card: #ffffff;
+    --card-foreground: oklch(0.145 0 0);
+    --popover: #ffffff;
+    --popover-foreground: oklch(0.145 0 0);
+    --primary: #030213;
+    --primary-foreground: #ffffff;
+    --secondary: #f4f4f5;
+    --secondary-foreground: #030213;
+    --muted: #f4f4f5;
+    --muted-foreground: #717182;
+    --accent: #f4f4f5;
+    --accent-foreground: #030213;
+    --destructive: #d4183d;
+    --destructive-foreground: #ffffff;
+    --border: #e4e4e7;
+    --input: #f4f4f5;
+    --ring: #030213;
+    --radius: 0.625rem;
+}
+
+/* Applying Dark Mode Overrides for the Project's Base Theme */
+body {
+    background-color: var(--background);
+    color: var(--foreground);
+}
+
+/* If the project prefers dark mode globally, we should wrap the reference styles or use .dark */
+/* For this project, we'll implement a 'premium-dark' wrapper if needed, but for now we follow reference logic */
+
+.dark,
+[data-theme='dark'] {
+    --background: oklch(0.145 0 0);
+    --foreground: oklch(0.985 0 0);
+    --card: oklch(0.145 0 0);
+    --card-foreground: oklch(0.985 0 0);
+    --popover: oklch(0.145 0 0);
+    --popover-foreground: oklch(0.985 0 0);
+    --primary: oklch(0.985 0 0);
+    --primary-foreground: oklch(0.205 0 0);
+    --secondary: oklch(0.269 0 0);
+    --secondary-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.269 0 0);
+    --muted-foreground: oklch(0.708 0 0);
+    --accent: oklch(0.269 0 0);
+    --accent-foreground: oklch(0.985 0 0);
+    --destructive: oklch(0.396 0.141 25.723);
+    --destructive-foreground: oklch(0.637 0.237 25.331);
+    --border: oklch(0.269 0 0);
+    --input: oklch(0.269 0 0);
+    --ring: oklch(0.439 0 0);
+}
+
+/* Utility Classes */
+.bg-background {
+    background-color: var(--background);
+}
+
+.bg-card {
+    background-color: var(--card);
+}
+
+.bg-primary {
+    background-color: var(--primary);
+}
+
+.bg-secondary {
+    background-color: var(--secondary);
+}
+
+.text-foreground {
+    color: var(--foreground);
+}
+
+.text-muted-foreground {
+    color: var(--muted-foreground);
+}
+
+.text-primary {
+    color: var(--primary);
+}
+
+.rounded-lg {
+    border-radius: var(--radius);
+}
+
+.rounded-xl {
+    border-radius: calc(var(--radius) + 0.25rem);
+}
+
+
+/* Premium Button - Specifically for Batch selection */
+.batch-btn {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    border-radius: var(--radius);
+    transition: all 0.2s ease;
+    border: 1px solid var(--border);
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+}
+
+.batch-btn-selected {
+    background-color: var(--primary);
+    color: var(--primary-foreground);
+    border-color: var(--primary);
+}
+
+.batch-btn-unselected {
+    background-color: var(--background);
+    color: var(--foreground);
+    border-color: var(--border);
+}
+
+.batch-btn-unselected:hover {
+    border-color: var(--primary);
+    background-color: var(--secondary);
+}
+
+/* Premium Card & Header */
+.premium-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+}
+
+.premium-card-title {
+    color: var(--foreground);
+    font-weight: 600;
+    letter-spacing: -0.025em;
+}
+
+/* Force light theme for specific blocks even if global theme is dark */
+.premium-light-block {
+    --background: #ffffff;
+    --foreground: oklch(0.145 0 0);
+    --card: #ffffff;
+    --card-foreground: oklch(0.145 0 0);
+    --primary: #030213;
+    --primary-foreground: #ffffff;
+    --secondary: #f4f4f5;
+    --secondary-foreground: #030213;
+    --muted: #f4f4f5;
+    --muted-foreground: #717182;
+    --accent: #f4f4f5;
+    --accent-foreground: #030213;
+    --border: #e4e4e7;
+    --input: #f4f4f5;
+    --ring: #030213;
+}

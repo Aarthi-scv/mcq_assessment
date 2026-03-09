@@ -12,6 +12,7 @@ const CodingSubmission = require('../models/CodingSubmission');
 const CodingModule = require('../models/CodingModule');
 const User = require('../models/User');
 const Admin = require('../models/Admin');
+const Batch = require('../models/Batch');
 const { parseMCQ } = require('../utils/parser');
 const { parseDocx } = require('../utils/docxParser');
 
@@ -178,6 +179,60 @@ router.get('/admin/verify', authenticateAdmin, (req, res) => {
   res.json({ valid: true, username: req.admin.username });
 });
 
+// --- BATCHES ---
+
+// Get all batches
+router.get('/batches', async (req, res) => {
+  try {
+    const batches = await Batch.find().sort({ name: 1 });
+    res.json(batches);
+  } catch (err) {
+    res.status(500).json({ message: 'Error fetching batches' });
+  }
+});
+
+// Create new batch (Admin only)
+router.post('/batches', authenticateAdmin, async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name) return res.status(400).json({ message: 'Batch name is required' });
+
+    const existing = await Batch.findOne({ name });
+    if (existing) return res.status(400).json({ message: 'Batch already exists' });
+
+    const batch = new Batch({ name });
+    await batch.save();
+    res.json(batch);
+  } catch (err) {
+    res.status(500).json({ message: 'Error creating batch' });
+  }
+});
+
+// Update batch (Admin only)
+router.patch('/batches/:id', authenticateAdmin, async (req, res) => {
+  try {
+    const { name, active } = req.body;
+    const updateData = {};
+    if (name !== undefined) updateData.name = name;
+    if (active !== undefined) updateData.active = active;
+
+    const batch = await Batch.findByIdAndUpdate(req.params.id, updateData, { new: true });
+    res.json(batch);
+  } catch (err) {
+    res.status(500).json({ message: 'Error updating batch' });
+  }
+});
+
+// Delete batch (Admin only)
+router.delete('/batches/:id', authenticateAdmin, async (req, res) => {
+  try {
+    await Batch.findByIdAndDelete(req.params.id);
+    res.json({ message: 'Batch deleted' });
+  } catch (err) {
+    res.status(500).json({ message: 'Error deleting batch' });
+  }
+});
+
 // --- MODULES ---
 
 // Get all modules (admin only)
@@ -262,6 +317,85 @@ router.post('/modules/create', authenticateAdmin, async (req, res) => {
   } catch (error) {
     console.error('Create Module Error:', error);
     res.status(500).json({ message: 'Error creating module', error: error.message });
+  }
+});
+
+// Combine multiple modules into a new assessment (with weighting)
+router.post('/modules/combine', authenticateAdmin, async (req, res) => {
+  try {
+    const { topicName, selections, courseType, difficultyLevel, assignedBatch, timer, preventReuse } = req.body;
+
+    if (!selections || selections.length === 0) {
+      return res.status(400).json({ message: 'No modules selected for combination' });
+    }
+
+    let finalQuiz = [];
+    let finalQuestions = [];
+
+    for (const selection of selections) {
+      const { moduleId, count } = selection;
+      const mod = await AssessmentModule.findById(moduleId);
+      if (!mod) continue;
+
+      let availableQuiz = mod.module?.quiz || [];
+      let availableQuestions = mod.questions || [];
+
+      // Map combined questions to keep indices synced
+      let combinedIndices = availableQuiz.map((q, i) => i);
+
+      // If preventReuse is enabled, filter for unused questions
+      if (preventReuse) {
+        combinedIndices = combinedIndices.filter(i => {
+          const q = availableQuiz[i];
+          const qData = availableQuestions[i];
+          return !(q?.isUsed || qData?.isUsed);
+        });
+      }
+
+      // Shuffle and pick requested number of questions
+      const selectedIndices = combinedIndices
+        .sort(() => 0.5 - Math.random())
+        .slice(0, count);
+
+      // Extract parts and mark as used in source module
+      selectedIndices.forEach(idx => {
+        const q = availableQuiz[idx];
+        const qData = availableQuestions[idx];
+
+        finalQuiz.push(q);
+        finalQuestions.push(qData);
+
+        // Mark as used in source module
+        if (q) q.isUsed = true;
+        if (qData) qData.isUsed = true;
+      });
+
+      // Mark module as used if any question is taken
+      if (selectedIndices.length > 0) {
+        mod.isUsed = true;
+        // Explicitly mark subdocuments as modified if needed (though Mongoose usually tracks this)
+        mod.markModified('module.quiz');
+        mod.markModified('questions');
+        await mod.save();
+      }
+    }
+
+    const combinedModule = new AssessmentModule({
+      topicName: topicName || 'Combined Assessment',
+      courseType: courseType || 'Mixed',
+      difficultyLevel: difficultyLevel || 'Mixed',
+      assignedBatch: assignedBatch || [],
+      timer: timer || 30,
+      module: { labs: [], quiz: finalQuiz },
+      questions: finalQuestions,
+      status: 'inactive'
+    });
+
+    await combinedModule.save();
+    res.json({ message: 'Combined assessment created', module: combinedModule });
+  } catch (err) {
+    console.error('Combine Error:', err);
+    res.status(500).json({ message: 'Error combining modules' });
   }
 });
 

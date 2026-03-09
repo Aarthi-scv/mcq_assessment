@@ -19,7 +19,8 @@ const assessmentModuleSchema = new mongoose.Schema({
       questionImage: { type: String, default: null },
       options: [{ type: String, required: true }],
       answer: { type: String, required: true },
-      explanation: { type: String, default: '' }
+      explanation: { type: String, default: '' },
+      isUsed: { type: Boolean, default: false }
     }]
   },
 
@@ -37,10 +38,12 @@ const assessmentModuleSchema = new mongoose.Schema({
     },
     correctAnswer: { type: String },
     correctValue: { type: String },
-    explanation: { type: String }
+    explanation: { type: String },
+    isUsed: { type: Boolean, default: false }
   }],
 
   activatedAt: { type: Date },
+  isUsed: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now }
 });
 

@@ -6,7 +6,7 @@ import { PlusCircle, Minus, ArrowLeft, Code2, Eye, FileUp } from "lucide-react";
 import CodeHighlighter from "./Assessment/CodeHighlighter";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-const BATCH_OPTIONS = ["DV-B8", "DV-B9", "DV-B10", "DV-B11", "DV-B12", "ES-B2", "ES-B3"];
+// BATCH_OPTIONS removed
 
 const getAdminHeaders = () => {
     const token = localStorage.getItem("adminToken");
@@ -37,7 +37,20 @@ const CreateModule = () => {
     });
 
     const [formQuestions, setFormQuestions] = useState([emptyQuestion()]);
+    const [batches, setBatches] = useState([]);
     const [submitting, setSubmitting] = useState(false);
+
+    React.useEffect(() => {
+        const fetchBatches = async () => {
+            try {
+                const res = await axios.get(`${API_URL}/batches`);
+                setBatches(res.data || []);
+            } catch (err) {
+                console.error("Failed to fetch batches", err);
+            }
+        };
+        fetchBatches();
+    }, []);
 
     const parseUploadedFile = (text) => {
         console.log('[Frontend Parser] Starting extraction, text length:', text.length);
@@ -350,8 +363,8 @@ const CreateModule = () => {
                                     required
                                 >
                                     <option value="" disabled>Select Batch</option>
-                                    {BATCH_OPTIONS.map((b) => (
-                                        <option key={b} value={b}>{b}</option>
+                                    {batches.map((b) => (
+                                        <option key={b._id} value={b.name}>{b.name}</option>
                                     ))}
                                 </select>
                             </div>

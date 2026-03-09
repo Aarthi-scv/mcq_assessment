@@ -14,6 +14,7 @@ import Login from "./components/Login";
 import CandidateDashboard from "./components/CandidateDashboard";
 import CCompiler from "./components/CCompiler";
 import CodingAssessment from "./components/CodingAssessment";
+import CombineAssessment from "./components/CombineAssessment";
 import "./App.css";
 
 // Landing component
@@ -92,6 +93,7 @@ function App() {
         <Route path="/assessment-report/:submissionId" element={<AssessmentReport />} />
         <Route path="/compiler" element={<CCompiler />} />
         <Route path="/admin/create-coding-module" element={<CreateCodingModule />} />
+        <Route path="/admin/combine-assessment" element={<CombineAssessment />} />
         <Route path="/coding-assessment" element={<CodingAssessment />} />
       </Routes>
     </Router>
