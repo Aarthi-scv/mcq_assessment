@@ -42,7 +42,8 @@ mongoose.connect(MONGO_URI)
   .catch(err => console.error('MongoDB Connection Error:', err));
 
 app.use('/api', apiRoutes);
-app.use('/api/practice', practiceRoutes);
+// Allow all origins for practice routes to prevent CORS errors for students
+app.use('/api/practice', cors(), practiceRoutes);
 
 app.get('/', (req, res) => {
   res.send('MCQ Assessment API is running');
