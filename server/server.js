@@ -4,6 +4,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const apiRoutes = require('./routes/api');
+const practiceRoutes = require('./routes/practice');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -41,6 +42,7 @@ mongoose.connect(MONGO_URI)
   .catch(err => console.error('MongoDB Connection Error:', err));
 
 app.use('/api', apiRoutes);
+app.use('/api/practice', practiceRoutes);
 
 app.get('/', (req, res) => {
   res.send('MCQ Assessment API is running');
