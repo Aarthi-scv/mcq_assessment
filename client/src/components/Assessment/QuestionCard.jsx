@@ -18,12 +18,26 @@ const QuestionCard = ({
 
   return (
     <div id={`q-${index}`} className="card question-card flex flex-col">
-      <div className="flex flex-col gap-4 mb-6">
+      <div className="flex flex-col gap-4 mb-2">
         <div>
-          <span className="question-number">Question {index + 1}</span>
+          <div className="flex justify-between">
+
+          <span className="question-number text-sm">Question {index + 1}</span>
+            <button
+            className={`btn btn-sm ${isMarkedForReview ? "review-btn-active" : "btn-secondary"}`}
+            onClick={() => onToggleReview(question._id)}
+          >
+            {isMarkedForReview ? (
+              <BookmarkCheck size={14} style={{marginRight:'5px'}} />
+            ) : (
+              <Bookmark size={14} style={{marginRight:'5px'}}/>
+            )}
+            {isMarkedForReview ? "Marked for Review" : "Mark for Review"}
+          </button>
+          </div>
 
           {/* Question text — always shown as a readable heading */}
-          <h3 className="question-title" style={{ marginTop: "0.4rem" }}>
+          <h3 className="text-sm mb-4" style={{ marginTop: "0.4rem" }}>
             {question.questionText}
           </h3>
 
@@ -55,33 +69,23 @@ const QuestionCard = ({
                 className={`option-button ${selectedOption === key ? "selected" : ""}`}
                 onClick={() => onSelect(question._id, key)}
               >
-                <span className="option-key">{key}</span>
+                <span className=" text-sm">{key}</span>
                 {text}
               </button>
             ),
         )}
       </div>
 
-      <div className="card-footer">
+      <div className="card-footer mt-4">
         <div className="flex gap-3">
           <button
-            className="btn btn-secondary btn-sm"
+            className="btn btn-secondary "
             onClick={() => onClear(question._id)}
             disabled={!selectedOption}
           >
-            <RotateCcw size={14} /> Clear Selection
+            <RotateCcw size={10} style={{marginRight:'5px'}} /> Clear Selection
           </button>
-          <button
-            className={`btn btn-sm ${isMarkedForReview ? "review-btn-active" : "btn-secondary"}`}
-            onClick={() => onToggleReview(question._id)}
-          >
-            {isMarkedForReview ? (
-              <BookmarkCheck size={14} />
-            ) : (
-              <Bookmark size={14} />
-            )}
-            {isMarkedForReview ? "Marked for Review" : "Mark for Review"}
-          </button>
+        
         </div>
       </div>
     </div>

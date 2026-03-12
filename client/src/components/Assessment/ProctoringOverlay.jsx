@@ -13,6 +13,13 @@ const ProctoringOverlay = ({ onViolation, violationCount, maxViolations = 3 }) =
 
     useEffect(() => {
         const loadModels = async () => {
+            // Check for Secure Context (HTTPS or localhost)
+            if (!window.isSecureContext) {
+                console.warn("Proctoring requires HTTPS. Camera access is blocked on insecure origins.");
+                setStatus('HTTPS Required for AI');
+                return;
+            }
+
             try {
                 setStatus('Loading AI Models...');
                 await Promise.all([
@@ -29,7 +36,12 @@ const ProctoringOverlay = ({ onViolation, violationCount, maxViolations = 3 }) =
         };
 
         const startVideo = () => {
-            navigator.mediaDevices.getUserMedia({ video: {} })
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                setStatus('Browser Not Supported');
+                return;
+            }
+
+            navigator.mediaDevices.getUserMedia({ video: true })
                 .then(stream => {
                     if (videoRef.current) {
                         videoRef.current.srcObject = stream;
@@ -37,7 +49,13 @@ const ProctoringOverlay = ({ onViolation, violationCount, maxViolations = 3 }) =
                 })
                 .catch(err => {
                     console.error("Webcam access error:", err);
-                    setStatus('Webcam Access Denied');
+                    if (err.name === 'NotAllowedError') {
+                        setStatus('Camera Permission Denied');
+                    } else if (err.name === 'NotFoundError') {
+                        setStatus('No Camera Found');
+                    } else {
+                        setStatus('Camera Error');
+                    }
                 });
         };
 

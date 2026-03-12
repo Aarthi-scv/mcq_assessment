@@ -21,6 +21,34 @@
   padding: 0;
 }
 
+/* Custom Scrollbar Styles for all components */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-color);
+  background-clip: content-box;
+}
+
+/* Firefox Support */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background-color: var(--dark-bg);
@@ -65,14 +93,24 @@ body {
   align-items: center;
   justify-content: center;
   border-radius: 10px;
-  font-weight: 600;
   cursor: pointer;
   border: none;
   padding: 5px;
-
-  font-size: 0.95rem;
-  text-transform: uppercase;
   letter-spacing: 0.025em;
+  font-weight: bold;
+}
+
+.btn-large {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  cursor: pointer;
+  border: none;
+  padding: 15px;
+  letter-spacing: 0.025em;
+  font-weight: bold;
+  text-transform: uppercase;
 }
 
 .btn-primary {
@@ -282,6 +320,19 @@ tr:hover td {
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
   margin-bottom: 4rem;
 }
+
+/* Confirmation Modal Enhancements */
+.modal-overlay.centered {
+  align-items: center;
+  padding: 1rem;
+  backdrop-filter: blur(8px);
+}
+
+.modal-content.premium {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(135deg, #161b27 0%, #0d1117 100%);
+}
+
 
 /* Custom Multi-Select - Premium */
 .multi-select-container {
@@ -636,15 +687,16 @@ tr:hover td {
   flex: 1;
   height: 100vh;
   overflow-y: auto;
-  padding: 2rem;
+  padding: 8px;
+  border-right: 1px solid var(--border-color);
 }
 
 .drawer-container {
   width: 350px;
-  height: 100vh;
-  border-left: 1px solid var(--border-color);
+  height: 100%;
+
   background: var(--glass-bg) !important;
-  padding: 2rem;
+  padding: 8px;
   position: sticky;
   top: 0;
   display: flex;
@@ -656,6 +708,8 @@ tr:hover td {
   grid-template-columns: repeat(5, 1fr);
   gap: 0.75rem;
   margin-top: 1rem;
+  height: 45vh;
+  overflow-y: scroll;
 }
 
 .q-badge {
@@ -690,5 +744,5 @@ tr:hover td {
   position: sticky;
   top: 0;
   z-index: 100;
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
 }

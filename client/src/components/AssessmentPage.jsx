@@ -2,12 +2,11 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import axios from "axios";
 import { useNavigate, useLocation } from "react-router-dom";
 import toast from "react-hot-toast";
-import { WifiOff, Wifi } from "lucide-react";
+import { WifiOff, Wifi, ShieldCheck } from "lucide-react";
 
 // Sub-components
 import LoadingScreen from "./Assessment/LoadingScreen";
 import AssessmentCompletion from "./Assessment/AssessmentCompletion";
-import AssessmentHeader from "./Assessment/AssessmentHeader";
 import QuestionCard from "./Assessment/QuestionCard";
 import AssessmentSidebar from "./Assessment/AssessmentSidebar";
 import ProctoringOverlay from "./Assessment/ProctoringOverlay";
@@ -69,8 +68,19 @@ const AssessmentPage = () => {
   const [feedback, setFeedback] = useState({ rating: 0, comment: "" });
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [retryPending, setRetryPending] = useState(false); // queued submit
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [violationCount, setViolationCount] = useState(0);
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
   const MAX_VIOLATIONS = 3;
+
+
+  const displayTime =
+    timer === null
+      ? "--:--"
+      : `${Math.floor(timer / 60).toString().padStart(2, "0")}:${(timer % 60)
+        .toString()
+        .padStart(2, "0")}`;
+
 
   // Keep a ref to the latest answers/moduleId for use inside timer callbacks
   const answersRef = useRef(answers);
@@ -112,8 +122,9 @@ const AssessmentPage = () => {
 
   // ── When connectivity is restored, retry a pending submission ──────────────
   useEffect(() => {
+    // Only trigger if we have a pending submission and the connection WAS restored
     if (isOnline && retryPending) {
-      toast("🌐 Connection restored — submitting your answers…", {
+      toast("🌐 Connection restored — submitting your answers...", {
         duration: 4000,
         style: { background: "#1e293b", color: "#fff" },
       });
@@ -121,7 +132,7 @@ const AssessmentPage = () => {
       handleSubmit(true, true); // auto=true, isRetry=true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOnline, retryPending]);
+  }, [isOnline]); // Only trigger when online status changes, not when retryPending changes to avoid loops
 
   // ── 1. Fetch Questions & Assessment Details ────────────────────────────────
   useEffect(() => {
@@ -338,9 +349,20 @@ const AssessmentPage = () => {
     });
   };
 
-  const scrollToQuestion = (index) => {
-    const el = document.getElementById(`q-${index}`);
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  const jumpToQuestion = (index) => {
+    setCurrentIndex(index);
+  };
+
+  const handleNext = () => {
+    if (currentIndex < questions.length - 1) {
+      setCurrentIndex(currentIndex + 1);
+    }
+  };
+
+  const handlePrev = () => {
+    if (currentIndex > 0) {
+      setCurrentIndex(currentIndex - 1);
+    }
   };
 
   const handleViolation = useCallback((reason) => {
@@ -409,14 +431,27 @@ const AssessmentPage = () => {
       else toast.success("Data transmitted successfully!");
 
     } catch (err) {
-      // Network failure during submit → queue for retry
-      setRetryPending(true);
-      toast.error(
-        "Submission failed — your answers are saved. Will retry when connection is restored.",
-        { duration: 8000, style: { background: "#1e293b", color: "#fff" } }
-      );
+      const isNetworkError = !err.response;
+
+      if (isNetworkError || !navigator.onLine) {
+        setRetryPending(true);
+        toast.error(
+          "Submission failed — your answers are saved. Will retry when connection is restored.",
+          { duration: 8000, style: { background: "#1e293b", color: "#fff" } }
+        );
+      } else {
+        // Server responded with an error (4xx or 5xx) - don't auto-retry in a loop
+        console.error("Submission Server Error:", err.response?.data);
+        toast.error(
+          `Submission Error: ${err.response?.data?.message || "Internal Server error"}. Please try again.`,
+          { duration: 6000 }
+        );
+      }
+    } finally {
+      setShowSubmitModal(false);
     }
   }, []);
+
 
   // ── Render ─────────────────────────────────────────────────────────────────
   if (loading) return <LoadingScreen />;
@@ -485,23 +520,55 @@ const AssessmentPage = () => {
 
       <div
         className="q-list-container fade-in"
-        style={{ paddingTop: !isOnline || retryPending ? "48px" : undefined }}
+        style={{ paddingTop: !isOnline || retryPending ? "48px" : "10px" }}
       >
-        <AssessmentHeader user={user} timer={timer} />
-
-        <div className="flex flex-col gap-10 pb-20 max-w-4xl mx-auto w-full">
-          {questions.map((q, index) => (
+        <div className="flex flex-col gap-2 pb-20 max-w-4xl mx-auto w-full" style={{ justifyContent: 'space-between', height: '95vh' }}>
+          {questions.length > 0 && (
             <QuestionCard
-              key={q._id}
-              question={q}
-              index={index}
-              selectedOption={answers[q._id]}
-              isMarkedForReview={revisitWork.has(q._id)}
+              key={questions[currentIndex]._id}
+              question={questions[currentIndex]}
+              index={currentIndex}
+              selectedOption={answers[questions[currentIndex]._id]}
+              isMarkedForReview={revisitWork.has(questions[currentIndex]._id)}
               onSelect={handleSelect}
               onClear={handleClear}
               onToggleReview={toggleRevisit}
             />
-          ))}
+          )}
+
+
+          {/* Navigation Buttons */}
+          <div className="flex justify-between items-center">
+            <button
+              className="btn-large btn-secondary"
+              onClick={handlePrev}
+              disabled={currentIndex === 0}
+              style={{ minWidth: "120px" }}
+            >
+              Previous
+            </button>
+            <div className="text-secondary text-sm font-bold">
+              Question {currentIndex + 1} of {questions.length}
+            </div>
+            {currentIndex === questions.length - 1 ? (
+              <button
+                className="btn-large btn-primary"
+                onClick={() => setShowSubmitModal(true)}
+                style={{ minWidth: "120px" }}
+              >
+                Finish
+              </button>
+            ) : (
+
+              <button
+                className="btn-large btn-primary"
+                onClick={handleNext}
+                style={{ minWidth: "120px" }}
+              >
+                Next
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -510,9 +577,46 @@ const AssessmentPage = () => {
         questions={questions}
         answers={answers}
         revisitWork={revisitWork}
-        onQuestionClick={scrollToQuestion}
-        onSubmit={handleSubmit}
+        timer={timer}
+        displayTime={displayTime}
+        onQuestionClick={jumpToQuestion}
+        onSubmit={() => setShowSubmitModal(true)}
       />
+
+      {/* ── Submission Confirmation Modal ── */}
+      {showSubmitModal && (
+        <div className="modal-overlay centered">
+          <div className="modal-content premium p-8 max-w-md w-full border-t-4 border-t-primary shadow-[0_0_50px_rgba(56,189,248,0.2)]">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                <ShieldCheck size={32} className="text-primary" />
+              </div>
+              <h2 className="text-2xl font-black mb-4 justify-center">Final Submission</h2>
+              <p className="text-secondary mb-8 leading-relaxed">
+                You have answered <span className="text-white font-bold">{Object.keys(answers).length}</span> out of <span className="text-white font-bold">{questions.length}</span> questions.
+                <br /><br />
+                Are you sure you want to end the assessment? This action cannot be undone.
+              </p>
+              <div className="flex flex-col gap-3">
+                <button
+                  className="btn-large btn-primary w-full"
+                  onClick={() => handleSubmit(false)}
+                >
+                  Yes, Submit Assessment
+                </button>
+                <button
+                  className="btn-large btn-secondary w-full"
+                  onClick={() => setShowSubmitModal(false)}
+                >
+                  No, Back to Assessment
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+
     </div>
   );
 };

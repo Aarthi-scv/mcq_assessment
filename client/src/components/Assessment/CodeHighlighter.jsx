@@ -95,7 +95,7 @@ const CodeHighlighter = ({ code }) => {
                 border: "1px solid rgba(0,245,255,0.12)",
                 borderLeft: "3px solid rgba(0,245,255,0.4)",
                 borderRadius: "10px",
-                padding: "1.1rem 1.25rem",
+                padding: "1rem",
                 marginTop: "0.85rem",
                 whiteSpace: "pre-wrap",
                 wordBreak: "break-word",

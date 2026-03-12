@@ -17,7 +17,7 @@ const AssessmentHeader = ({ user, timer }) => {
           <Cpu size={24} className="text-primary" />
         </div>
         <div>
-          <h2 style={{ margin: 0, fontSize: "1.25rem" }}>Assessment Module</h2>
+          <h3 style={{ margin: 0}}>Assessment Module</h3>
           <div className="text-xs text-secondary flex items-center gap-1">
             <User size={12} /> {user?.name} ({user?.batch})
           </div>

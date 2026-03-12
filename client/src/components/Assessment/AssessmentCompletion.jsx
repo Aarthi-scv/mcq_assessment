@@ -22,55 +22,16 @@ const AssessmentCompletion = ({
             <CheckCircle size={64} className="text-secondary" />
           </div>
         </div>
-        <h1>Assessment Completed</h1>
-        <p className="text-secondary mb-8">
+        <p className="text-secondary mb-4">
           Assessment completed for candidate: <strong>{user?.name}</strong>{" "}
           (Batch: {user?.batch})
         </p>
-
-        <div
-          className="grid grid-cols-2 gap-4 mb-8"
-          style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}
-        >
-          <div className="card bg-black/30">
-            <span className="block text-secondary text-xs uppercase mb-1">
-              Correct Answers
-            </span>
-            <span className="text-2xl font-bold text-secondary">
-              {submissionResult.correct}
-            </span>
-          </div>
-          <div className="card bg-black/30">
-            <span className="block text-secondary text-xs uppercase mb-1">
-              Incorrect Answers
-            </span>
-            <span className="text-2xl font-bold text-danger">
-              {submissionResult.wrong}
-            </span>
-          </div>
-        </div>
-
-        <div
-          className="card mb-8 py-6"
-          style={{
-            background:
-              "linear-gradient(135deg, rgba(0,245,255,0.1), transparent)",
-          }}
-        >
-          <span className="block text-secondary text-sm uppercase mb-2">
-            Final Score
-          </span>
-          <div
-            style={{
-              fontSize: "4rem",
-              fontWeight: 900,
-              color: "var(--primary-color)",
-            }}
-          >
-            {submissionResult.score}
-          </div>
-        </div>
-
+        <p className="text-secondary mb-4">
+          Your responses have been successfully submitted.
+        </p>
+        <p className="text-secondary mb-4">
+          Score will be updated soon in dashboard
+        </p>
         <div className="mb-8">
           <h3 className="mb-4">Internal System Feedback</h3>
           <div className="flex justify-center gap-3 mb-6">
@@ -110,7 +71,7 @@ const AssessmentCompletion = ({
         </div>
 
         <div className="flex flex-col gap-3">
-          <button className="btn btn-primary w-full" onClick={onReturnHome}>
+          <button className="btn-large btn-primary w-full" onClick={onReturnHome}>
             Back to Dashboard
           </button>
         </div>

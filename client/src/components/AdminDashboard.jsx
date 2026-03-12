@@ -360,10 +360,15 @@ const AdminDashboard = () => {
   };
 
   const deleteSubmission = async (id, userName) => {
-    if (!window.confirm(`Are you sure you want to reset the assessment for ${userName}? This will delete their current score and allow them to retake the exam.`)) return;
+    setDeleteConfirm({ show: true, id, title: userName, type: "reset-mcq" });
+  };
+
+  const confirmResetSubmission = async () => {
+    const { id, title: userName } = deleteConfirm;
     try {
       await axios.delete(`${API_URL}/submissions/${id}`, getAdminHeaders());
       toast.success(`Assessment reset for ${userName}`);
+      setDeleteConfirm({ show: false, id: null, title: "", type: "mcq" });
       fetchSubmissions();
     } catch (err) {
       toast.error("Failed to reset assessment.");
@@ -371,11 +376,16 @@ const AdminDashboard = () => {
   };
 
   const deleteCodingSubmission = async (id, userName) => {
-    if (!window.confirm(`Are you sure you want to reset the coding assessment for ${userName}? This will delete their code and score.`)) return;
+    setDeleteConfirm({ show: true, id, title: userName, type: "reset-coding" });
+  };
+
+  const confirmResetCodingSubmission = async () => {
+    const { id, title: userName } = deleteConfirm;
     try {
       await axios.delete(`${API_URL}/coding-submissions/${id}`, getAdminHeaders());
       toast.success(`Coding assessment reset for ${userName}`);
-      fetchCodingSubmissions();
+      setDeleteConfirm({ show: false, id: null, title: "", type: "mcq" });
+      fetchCodingAnalytics();
     } catch (err) {
       toast.error("Failed to reset coding assessment.");
     }
@@ -445,11 +455,16 @@ const AdminDashboard = () => {
   };
 
   const deleteBatch = async (id, name) => {
-    if (!window.confirm(`Are you sure you want to delete batch ${name}?`)) return;
+    setDeleteConfirm({ show: true, id, title: name, type: "batch" });
+  };
+
+  const confirmDeleteBatch = async () => {
+    const { id } = deleteConfirm;
     try {
       await axios.delete(`${API_URL}/batches/${id}`, getAdminHeaders());
       setBatches(batches.filter(b => b._id !== id));
       toast.success("Batch deleted");
+      setDeleteConfirm({ show: false, id: null, title: "", type: "mcq" });
     } catch (err) {
       toast.error("Failed to delete batch");
     }
@@ -578,7 +593,11 @@ const AdminDashboard = () => {
   };
 
   const deleteQuestion = async (moduleId, questionId) => {
-    if (!window.confirm("Delete this question?")) return;
+    setDeleteConfirm({ show: true, id: { moduleId, questionId }, title: "this question", type: "question" });
+  };
+
+  const confirmDeleteQuestion = async () => {
+    const { id: { moduleId, questionId } } = deleteConfirm;
     try {
       await axios.delete(
         `${API_URL}/modules/${moduleId}/questions/${questionId}`,
@@ -589,6 +608,7 @@ const AdminDashboard = () => {
       const res = await axios.get(`${API_URL}/modules`, getAdminHeaders());
       const updated = res.data.find(m => m._id === moduleId);
       if (updated) setViewModule(updated);
+      setDeleteConfirm({ show: false, id: null, title: "", type: "mcq" });
     } catch (err) {
       toast.error("Failed to delete question");
     }
@@ -789,6 +809,10 @@ const AdminDashboard = () => {
         setDeleteConfirm={setDeleteConfirm}
         confirmDeleteModule={confirmDeleteModule}
         confirmDeleteCodingModule={confirmDeleteCodingModule}
+        confirmResetSubmission={confirmResetSubmission}
+        confirmResetCodingSubmission={confirmResetCodingSubmission}
+        confirmDeleteBatch={confirmDeleteBatch}
+        confirmDeleteQuestion={confirmDeleteQuestion}
       />
     </>
   );

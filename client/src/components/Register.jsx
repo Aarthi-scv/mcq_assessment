@@ -19,6 +19,15 @@ const Register = () => {
   const [resendCooldown, setResendCooldown] = useState(0);
   const navigate = useNavigate();
 
+  // Redirect if already logged in
+  React.useEffect(() => {
+    const storedUser = localStorage.getItem("candidateUser");
+    const token = localStorage.getItem("candidateToken");
+    if (storedUser && token) {
+      navigate("/candidate-dashboard");
+    }
+  }, [navigate]);
+
   // Load batches on mount
   React.useEffect(() => {
     const fetchBatches = async () => {

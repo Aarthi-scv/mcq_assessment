@@ -11,8 +11,16 @@ const AdminLogin = () => {
         username: "",
         password: "",
     });
-    const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
+    const [loading, setLoading] = useState(false);
+
+    // Redirect if already logged in
+    React.useEffect(() => {
+        const token = localStorage.getItem("adminToken");
+        if (token) {
+            navigate("/admin");
+        }
+    }, [navigate]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();

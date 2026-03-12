@@ -1,6 +1,6 @@
 import React from "react";
 import {
-    Layers, Plus, Search, Filter, Code2, Eye, Trash2, Square, Play, Clock
+    Layers, Plus, Search, Filter, Code2, Eye, Trash2, Square, Play, Clock, Cpu
 } from "lucide-react";
 import MultiSelect from "../MultiSelect";
 import toast from "react-hot-toast";
@@ -20,7 +20,8 @@ const AssessmentsTab = ({
     codingModules,
     updateCodingModule,
     deleteCodingModule,
-    batches
+    batches,
+    updateModule
 }) => {
     return (
         <div className="animate-slide-up">
@@ -133,6 +134,119 @@ const AssessmentsTab = ({
                             <PlusCircle size={48} className="mx-auto mb-4 opacity-20" />
                             <p>No modules found. Click + to create one.</p>
                         </div>
+                    )}
+                </div>
+            </div>
+
+            {/* ===== ACTIVE TRAINING MODULES ===== */}
+            <div className="mb-12">
+                <h2 className="mb-6">
+                    <Cpu size={24} className="text-primary" /> Active Training Modules
+                </h2>
+                <div className="flex flex-col gap-4">
+                    {loading ? (
+                        <div className="card">
+                            <div className="admin-loader-wrap">
+                                <div className="admin-loader-ring" />
+                                <div className="admin-loader-dots">
+                                    <span /><span /><span />
+                                </div>
+                                <div className="admin-loader-label">Initializing Core Systems</div>
+                            </div>
+                        </div>
+                    ) : (
+                        filteredModules.map((module) => (
+                            <div
+                                key={module._id}
+                                className="card flex justify-between items-center gap-6"
+                                style={{ flexWrap: "wrap" }}
+                            >
+                                <div className="module-card-content" style={{ flex: 1 }}>
+                                    <div className="flex items-center gap-3 mb-2">
+                                        <Layers size={18} className="text-primary" />
+                                        <h3 className="module-title">{module.topicName}</h3>
+                                    </div>
+                                    <div className="flex gap-2 items-center" style={{ flexWrap: "wrap" }}>
+                                        <span className="badge badge-primary">
+                                            {module.courseType}
+                                        </span>
+                                        <span className="badge">{module.difficultyLevel}</span>
+                                        {module.assignedBatch?.map((batch) => (
+                                            <span key={batch} className="badge batch-badge">
+                                                {batch}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-6 items-center" style={{ flexWrap: "wrap" }}>
+                                    {/* Batch Selector */}
+                                    <div className="batch-selector-wrapper">
+                                        <MultiSelect
+                                            options={batches.map(b => b.name)}
+                                            selected={module.assignedBatch || []}
+                                            onChange={(values) =>
+                                                updateModule(module._id, { assignedBatch: values })
+                                            }
+                                            placeholder="Assign Batches"
+                                        />
+                                    </div>
+
+                                    {/* Timer Control */}
+                                    <div className="flex items-center gap-3 bg-black/30 p-2 rounded-lg border border-white/5">
+                                        <Clock size={16} className="text-secondary" />
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            defaultValue={module.timer}
+                                            onKeyDown={(e) => {
+                                                if (e.key === "-" || e.key === "e" || e.key === "E") {
+                                                    e.preventDefault();
+                                                }
+                                            }}
+                                            onBlur={(e) => {
+                                                const val = parseInt(e.target.value);
+                                                if (isNaN(val) || val <= 0) {
+                                                    toast.error("Timer must be at least 1 minute");
+                                                    e.target.value = 1;
+                                                    updateModule(module._id, { timer: 1 });
+                                                } else {
+                                                    updateModule(module._id, { timer: val });
+                                                }
+                                            }}
+                                            className="timer-input"
+                                            style={{ width: "60px", background: "transparent", border: "none", color: "white", textAlign: "center", outline: "none" }}
+                                        />
+                                        <span className="text-xs font-bold text-secondary">
+                                            MINS
+                                        </span>
+                                    </div>
+
+                                    {/* Status Toggle & Timer Display */}
+                                    <div className="flex items-center status-toggle-wrapper">
+                                        {module.status === "active" ? (
+                                            <button
+                                                className="btn btn-danger status-btn"
+                                                onClick={() =>
+                                                    updateModule(module._id, { status: "inactive" })
+                                                }
+                                            >
+                                                <Square size={16} fill="currentColor" /> Stop Timer
+                                            </button>
+                                        ) : (
+                                            <button
+                                                className="btn btn-primary status-btn text-sm"
+                                                onClick={() =>
+                                                    updateModule(module._id, { status: "active" })
+                                                }
+                                            >
+                                                <Play size={16} fill="currentColor" /> Start Timer
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        ))
                     )}
                 </div>
             </div>

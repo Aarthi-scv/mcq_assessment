@@ -176,16 +176,6 @@ const CandidateDashboard = () => {
     return currentTime - submissionTime >= oneHourInMs;
   };
 
-  const getWaitMessage = (submittedAt) => {
-    const submissionTime = new Date(submittedAt).getTime();
-    const currentTime = new Date().getTime();
-    const oneHourInMs = 60 * 60 * 1000;
-    const diff = oneHourInMs - (currentTime - submissionTime);
-    if (diff <= 0) return null;
-    const mins = Math.ceil(diff / (60 * 1000));
-    return `Available in ${mins}m`;
-  };
-
   const startAssessment = () => {
     if (activeModule) {
       // Pass the moduleId so AssessmentPage knows which one to load
@@ -205,10 +195,10 @@ const CandidateDashboard = () => {
 
   return (
     <div className="container fade-in">
-      <header className="flex justify-between items-center mb-12">
+      <header className="flex justify-between items-center mb-2">
         <div>
           <h1 className="text-4xl" style={{ marginBottom: "0.5rem" }}>Candidate Dashboard</h1>
-          <p className="text-secondary">Welcome back, {user?.name}</p>
+          <p className="text-secondary capitalize">Welcome back, {user?.name}</p>
         </div>
         <button className="btn btn-secondary" onClick={handleLogout}>
           <LogOut size={18} /> Logout
@@ -218,32 +208,8 @@ const CandidateDashboard = () => {
       <div className="grid gap-8" style={{ gridTemplateColumns: "1fr 2fr" }}>
         {/* Profile Card */}
         <div className="card">
-          <h3 className="mb-6 flex items-center gap-2">
-            <User size={20} className="text-primary" /> Candidate Profile
-          </h3>
-          <div className="space-y-4">
-            <div>
-              <label className="text-xs text-secondary block mb-1">
-                DESIGNATION
-              </label>
-              <div className="font-bold">{user?.name}</div>
-            </div>
-            <div>
-              <label className="text-xs text-secondary block mb-1">
-                SYSTEM EMAIL
-              </label>
-              <div className="font-bold">{user?.email}</div>
-            </div>
-            <div>
-              <label className="text-xs text-secondary block mb-1">
-                ASSIGNED BATCH
-              </label>
-              <div className="badge badge-primary">{user?.batch}</div>
-            </div>
-          </div>
-
           {/* Submissions Section */}
-          <div className="mt-8 pt-8 border-t border-white/5">
+          <div className="pt-8 border-t border-white/5">
             <h3 className="mb-4 text-sm flex items-center gap-2">
               <Layers size={16} className="text-secondary" /> Recent Activity
             </h3>
@@ -276,7 +242,7 @@ const CandidateDashboard = () => {
                           className="flex-1 p-1 px-2 bg-white/5 border border-white/5 rounded text-secondary italic text-center"
                           style={{ fontSize: "10px" }}
                         >
-                          {getWaitMessage(sub.submittedAt)}
+                          Report will be available soon
                         </div>
                       )}
 
@@ -364,13 +330,12 @@ const CandidateDashboard = () => {
 
         {/* Assessment Card */}
         <div className="card">
-          <h3 className="mb-6 flex items-center gap-2">
-            <Cpu size={20} className="text-primary" /> Active Payload
-            Transmission
+          <h3 className="mb-2 flex items-center gap-2">
+            <Cpu size={20} className="text-primary" /> Active Assessment
           </h3>
 
           {activeModule ? (
-            <div className="bg-primary/5 border border-primary/20 rounded-xl p-6">
+            <div className="bg-primary/5 border border-primary/20 rounded-xl p-2">
               <div className="flex justify-between items-start mb-6">
                 <div>
                   <h2 style={{ margin: 0, color: "var(--primary-color)" }}>
@@ -388,7 +353,7 @@ const CandidateDashboard = () => {
                 </div>
               </div>
 
-              <p className="text-secondary mb-8">
+              <p className="text-secondary mb-4">
                 Your batch ({user?.batch}) has been authorized for this
                 assessment. Please ensure you have a stable connection before
                 initiating the sequence.
@@ -426,7 +391,7 @@ const CandidateDashboard = () => {
                     ) : (
                       <div className="p-3 bg-white/5 border border-white/10 rounded-xl text-center text-secondary text-sm">
                         <Clock size={14} style={{ display: "inline", marginRight: "6px" }} />
-                        Detailed report will be unlocked {getWaitMessage(sub.submittedAt).toLowerCase()}
+                        Detailed report will be available soon
                       </div>
                     );
                   })()}
